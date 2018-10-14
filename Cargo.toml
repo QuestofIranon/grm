@@ -6,4 +6,5 @@ authors = ["Josh <QuestofIranon@users.noreply.github.com>"]
 [dependencies]
 structopt = "0.2"
 git2 = "0.7.5"
+walkdir = "2"
 
