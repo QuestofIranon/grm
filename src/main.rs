@@ -8,15 +8,6 @@ use std::{env, path::Path};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
-/*
-'ghq' get [-u] [-p] (<repository URL> | <user>/<project> | <project>)
-'ghq' list [-p] [-e] [<query>]
-'ghq' look (<project> | <path/to/project>)
-'ghq' import [-u] [-p] < FILE
-'ghq' import <subcommand> [<args>…​]
-'ghq' root [--all]
-*/
-
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
 enum Grm {
@@ -30,7 +21,6 @@ enum Grm {
         remote: Option<String>,
     },
     #[structopt(name = "list")]
-    /// NOT IMPLEMENTED
     List {
         #[structopt(long = "full-path", short = "p")]
         full_path: bool,
@@ -47,6 +37,23 @@ enum Grm {
         #[structopt(long = "all", short = "a")]
         all: bool,
     },
+}
+
+fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>){
+    let grm_root = match git_config.get_path("grm.root") {
+        Ok(root) => root,
+        Err(error) => match git_config.get_path("ghq.root") {
+            Ok(root) => root,
+            Err(error) => {
+                println!("grm.root not specified in git config");
+                return;
+            }
+        },
+    };
+
+    if let Some(remote) = remote {
+
+    }
 }
 
 fn command_list(git_config: &Config, full_path: bool) {
@@ -72,12 +79,36 @@ fn command_list(git_config: &Config, full_path: bool) {
     }
 }
 
+fn command_root(git_config: &Config) {
+    let grm_root = match git_config.get_path("grm.root") {
+        Ok(root) => root,
+        Err(error) => match git_config.get_path("ghq.root") {
+            Ok(root) => root,
+            Err(error) => {
+                println!("grm.root not specified in git config");
+                return;
+            }
+        },
+    };
+
+    println!("{}", grm_root.as_path().display());
+}
+
 fn main() {
-    let args = Grm::from_args();
+    let subcommand = Grm::from_args();
 
     // fixme: better messages?
     let git_config =
         Config::open_default().expect("No git config found, do you have git installed?");
 
-    command_list(&git_config, true)
+    println!("{:?}", subcommand);
+
+    match subcommand {
+        Grm::Get{update, ssh, remote}   => println!("Unimplemented!"),
+        Grm::List{full_path, exact}     => command_list(&git_config, full_path),
+        Grm::Look{repository}           => println!("Unimplemented!"),
+        Grm::Root{all}                  => command_root(&git_config),
+        _                               => println!("Invalid command, use grm -h for help."),
+    }
+
 }
