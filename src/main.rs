@@ -3,9 +3,9 @@ extern crate structopt;
 extern crate git2;
 extern crate walkdir;
 
+use git2::Config;
 use std::{env, path::Path};
 use structopt::StructOpt;
-use git2::Config;
 use walkdir::{DirEntry, WalkDir};
 
 /*
@@ -17,9 +17,8 @@ use walkdir::{DirEntry, WalkDir};
 'ghq' root [--all]
 */
 
-
 #[derive(StructOpt, Debug)]
-#[structopt(name="grm", about = "Git remote repository manager")]
+#[structopt(name = "grm", about = "Git remote repository manager")]
 enum Grm {
     #[structopt(name = "get")]
     /// NOT IMPLEMENTED
@@ -28,7 +27,7 @@ enum Grm {
         update: bool,
         #[structopt(short = "p")]
         ssh: bool,
-        remote: Option<String>
+        remote: Option<String>,
     },
     #[structopt(name = "list")]
     /// NOT IMPLEMENTED
@@ -40,15 +39,14 @@ enum Grm {
     },
     #[structopt(name = "look")]
     /// NOT IMPLEMENTED
-    Look {
-        repository: String
-    },
+    Look { repository: String },
     //todo: import
     #[structopt(name = "root")]
-    Root { //todo: handle multiple roots
+    Root {
+        //todo: handle multiple roots
         #[structopt(long = "all", short = "a")]
-        all: bool
-    }
+        all: bool,
+    },
 }
 
 fn command_list(git_config: &Config, full_path: bool) {
@@ -58,13 +56,19 @@ fn command_list(git_config: &Config, full_path: bool) {
             Ok(root) => root,
             Err(error) => {
                 println!("grm.root not specified in git config");
-                return
+                return;
             }
-        }
+        },
     };
 
-    for entry in WalkDir::new(grm_root).min_depth(3).max_depth(3).into_iter().filter_entry(|e| e.path().join(".git").exists()).filter_map(|e| e.ok()) {
-            println!("{}", entry.path().display());
+    for entry in WalkDir::new(grm_root)
+        .min_depth(3)
+        .max_depth(3)
+        .into_iter()
+        .filter_entry(|e| e.path().join(".git").exists())
+        .filter_map(|e| e.ok())
+    {
+        println!("{}", entry.path().display());
     }
 }
 
@@ -72,11 +76,8 @@ fn main() {
     let args = Grm::from_args();
 
     // fixme: better messages?
-    let git_config = Config::open_default()
-        .expect("No git config found, do you have git installed?");
+    let git_config =
+        Config::open_default().expect("No git config found, do you have git installed?");
 
     command_list(&git_config, true)
-    
-    
-
 }
