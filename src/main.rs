@@ -4,7 +4,7 @@ extern crate git2;
 extern crate walkdir;
 
 use git2::{Config, Repository};
-use std::{env, path::Path};
+use std::{env, path::Path, boxed::Box};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
@@ -58,13 +58,27 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
 
         let path = grm_root.as_path().clone().join(sub_path);
 
-        let repo = match Repository::clone(&remote, path) {
-            Ok(repo) => match repo.workdir() {
-                Some(dir) => println!("{}", dir.display()),
-                None => println!("{}", repo.path().display()),
-            },
-            Err(e) => panic!("failed to clone: {}", e),
-        };
+        if !path.exists(){
+            let repo = match Repository::clone(&remote, path) {
+                Ok(repo) => match repo.workdir() {
+                    Some(dir) => println!("{}", dir.display()),
+                    None => println!("{}", repo.path().display()),
+                },
+                Err(e) => panic!("failed to clone: {}", e),
+            };
+        } else if(update) {
+            let repo = match Repository::open(path) {
+                Ok(repo) => {
+                    println!("not yet implemented")
+                    //todo: find and update repo (git pull -ff)
+
+
+                },
+                // fixme: better message
+                Err(e) => panic!("failed to clone: {}", e), 
+            };
+
+        }
     };
 }
 
