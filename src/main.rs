@@ -3,7 +3,7 @@ extern crate structopt;
 extern crate git2;
 extern crate walkdir;
 
-use git2::Config;
+use git2::{Config, Repository};
 use std::{env, path::Path};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
@@ -53,7 +53,20 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
 
     if let Some(remote) = remote {
 
-    }
+        let sub_path = remote.trim_left_matches(&"https://").trim_right_matches(&".git");
+
+        let path = grm_root.as_path().clone().join(sub_path);
+
+        let repo = match Repository::clone(&remote, path){
+           Ok(repo)     => {
+               match repo.workdir() {
+                   Some(dir)    => println!("{}", dir.display()),
+                   None                 => println!("{}", repo.path().display())
+               }
+           },
+           Err(e)       => panic!("failed to clone: {}", e) 
+        };
+    };
 }
 
 fn command_list(git_config: &Config, full_path: bool) {
@@ -101,10 +114,8 @@ fn main() {
     let git_config =
         Config::open_default().expect("No git config found, do you have git installed?");
 
-    println!("{:?}", subcommand);
-
     match subcommand {
-        Grm::Get{update, ssh, remote}   => println!("Unimplemented!"),
+        Grm::Get{update, ssh, remote}   => command_get(&git_config, update, ssh, remote),
         Grm::List{full_path, exact}     => command_list(&git_config, full_path),
         Grm::Look{repository}           => println!("Unimplemented!"),
         Grm::Root{all}                  => command_root(&git_config),
