@@ -39,7 +39,7 @@ enum Grm {
     },
 }
 
-fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>){
+fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
         Err(error) => match git_config.get_path("ghq.root") {
@@ -52,19 +52,18 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
     };
 
     if let Some(remote) = remote {
-
-        let sub_path = remote.trim_left_matches(&"https://").trim_right_matches(&".git");
+        let sub_path = remote
+            .trim_left_matches(&"https://")
+            .trim_right_matches(&".git");
 
         let path = grm_root.as_path().clone().join(sub_path);
 
-        let repo = match Repository::clone(&remote, path){
-           Ok(repo)     => {
-               match repo.workdir() {
-                   Some(dir)    => println!("{}", dir.display()),
-                   None                 => println!("{}", repo.path().display())
-               }
-           },
-           Err(e)       => panic!("failed to clone: {}", e) 
+        let repo = match Repository::clone(&remote, path) {
+            Ok(repo) => match repo.workdir() {
+                Some(dir) => println!("{}", dir.display()),
+                None => println!("{}", repo.path().display()),
+            },
+            Err(e) => panic!("failed to clone: {}", e),
         };
     };
 }
@@ -115,11 +114,14 @@ fn main() {
         Config::open_default().expect("No git config found, do you have git installed?");
 
     match subcommand {
-        Grm::Get{update, ssh, remote}   => command_get(&git_config, update, ssh, remote),
-        Grm::List{full_path, exact}     => command_list(&git_config, full_path),
-        Grm::Look{repository}           => println!("Unimplemented!"),
-        Grm::Root{all}                  => command_root(&git_config),
-        _                               => println!("Invalid command, use grm -h for help."),
+        Grm::Get {
+            update,
+            ssh,
+            remote,
+        } => command_get(&git_config, update, ssh, remote),
+        Grm::List { full_path, exact } => command_list(&git_config, full_path),
+        Grm::Look { repository } => println!("Unimplemented!"),
+        Grm::Root { all } => command_root(&git_config),
+        _ => println!("Invalid command, use grm -h for help."),
     }
-
 }
