@@ -3,8 +3,8 @@ extern crate structopt;
 extern crate git2;
 extern crate walkdir;
 
-use git2::{Config, Repository};
-use std::{env, path::Path, boxed::Box};
+use git2::{Config, Repository, Refspec};
+use std::{env, path::Path, boxed::Box, io::Result};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
@@ -39,6 +39,34 @@ enum Grm {
     },
 }
 
+// performs similar action as git pull -ff-only
+fn git_pull_fastforward_only(repository: &Repository) -> Result<()> {
+
+    let mut remote = match repository.find_remote("origin") {
+        Ok(remote) => remote,
+        Err(error) => panic!("Could not retrieve origin to pull") // todo: silently die?
+    };
+
+    // todo: find if there is a better way to handle "temp value does not live long enough"
+    let remote_clone = remote.clone();
+
+    remote_clone.refspecs().for_each(|rs| {
+        let name = match rs.str() {
+            Some(name) => name,
+            None => return
+        };
+
+        println!("{}", name);
+
+        let fetch_result = match remote.fetch(&[name], None, None) {
+            Ok(fetch_result) => fetch_result,
+            Err(error) => panic!("Could not fetch {}", name)
+        };
+    });
+
+    Ok(())
+}
+
 fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
@@ -69,10 +97,9 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
         } else if(update) {
             let repo = match Repository::open(path) {
                 Ok(repo) => {
-                    println!("not yet implemented")
+                    println!("not yet implemented");
                     //todo: find and update repo (git pull -ff)
-
-
+                    git_pull_fastforward_only(&repo);
                 },
                 // fixme: better message
                 Err(e) => panic!("failed to clone: {}", e), 
