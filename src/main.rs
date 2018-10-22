@@ -2,6 +2,7 @@
 extern crate structopt;
 extern crate git2;
 extern crate walkdir;
+extern crate pathdiff;
 
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{
@@ -11,6 +12,7 @@ use git2::{
 use std::{boxed::Box, env, io::Result, path::Path, thread, time};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
+use pathdiff::diff_paths;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -197,14 +199,25 @@ fn command_list(git_config: &Config, full_path: bool) {
         },
     };
 
-    for entry in WalkDir::new(grm_root)
-        .min_depth(3)
-        .max_depth(3)
+    for entry in WalkDir::new(&grm_root)
+        .sort_by(|a,b| a.file_name().cmp(b.file_name()))
+        .min_depth(0)
+        .max_depth(4)
         .into_iter()
-        .filter_entry(|e| e.path().join(".git").exists())
         .filter_map(|e| e.ok())
     {
-        println!("{}", entry.path().display());
+        if entry.path().join(".git").exists() {
+            if full_path {
+                println!("{}", entry.path().display());
+            } else {
+                let relative_path = match diff_paths(&entry.path(), &grm_root){
+                    Some(path) => path,
+                    None => return
+                };
+
+                println!("{}", relative_path.as_path().display());
+            }
+        }
     }
 }
 

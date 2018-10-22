@@ -7,4 +7,5 @@ authors = ["Josh <QuestofIranon@users.noreply.github.com>"]
 structopt = "0.2"
 git2 = "0.7.5"
 walkdir = "2"
+pathdiff = "0.1.0"
 
