@@ -3,9 +3,12 @@ extern crate structopt;
 extern crate git2;
 extern crate walkdir;
 
-use git2::build::{RepoBuilder, CheckoutBuilder};
-use git2::{Config, Repository, StatusOptions, Refspec, RemoteCallbacks, Progress, FetchOptions, Direction, MergeOptions, MergeAnalysis};
-use std::{env, path::Path, boxed::Box, io::Result, thread, time};
+use git2::build::{CheckoutBuilder, RepoBuilder};
+use git2::{
+    Config, Direction, FetchOptions, MergeAnalysis, MergeOptions, Progress, Refspec,
+    RemoteCallbacks, Repository, StatusOptions,
+};
+use std::{boxed::Box, env, io::Result, path::Path, thread, time};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
 
@@ -41,10 +44,9 @@ enum Grm {
 
 // performs similar action to git pull -ff-only
 fn git_pull_fastforward_only(repository: &Repository) -> Result<()> {
-
     let mut remote = match repository.find_remote("origin") {
         Ok(remote) => remote,
-        Err(err) => panic!("Could not retrieve origin to pull {}", err) // todo: silently die?
+        Err(err) => panic!("Could not retrieve origin to pull {}", err), // todo: silently die?
     };
 
     let mut remote_callbacks = RemoteCallbacks::new();
@@ -55,21 +57,19 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<()> {
         println!("total objects: {}", owned_progress.total_objects());
 
         true
-
     });
 
     let mut options = FetchOptions::new();
     options.remote_callbacks(remote_callbacks);
 
-
     let fetch_results = match remote.fetch(&[], Some(&mut options), None) {
         Ok(fetch_results) => fetch_results,
-        Err(err) => panic!("Could not fetch => {}", err)
+        Err(err) => panic!("Could not fetch => {}", err),
     };
 
     let head = match repository.head() {
         Ok(head) => head,
-        Err(err) => panic!("Could not get the head => {}", err)
+        Err(err) => panic!("Could not get the head => {}", err),
     };
 
     if !head.is_branch() {
@@ -79,70 +79,69 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<()> {
 
     let branch_name = match head.shorthand() {
         Some(branch_name) => branch_name,
-        None => panic!("no name")
+        None => panic!("no name"),
     };
 
     println!("branch name => {}", branch_name);
 
     let local_oid = match head.target() {
         Some(oid) => oid,
-        None => panic!("no local oid")
+        None => panic!("no local oid"),
     };
 
-    let origin_oid = match repository.refname_to_id(&format!("refs/remotes/origin/{}", branch_name)){
+    let origin_oid = match repository.refname_to_id(&format!("refs/remotes/origin/{}", branch_name))
+    {
         Ok(oid) => oid,
-        Err(err) => panic!("NO remote OID")
+        Err(err) => panic!("NO remote OID"),
     };
 
-    let local_commit = match repository.find_annotated_commit(local_oid){
+    let local_commit = match repository.find_annotated_commit(local_oid) {
         Ok(commit) => commit,
-        Err(err) => panic!("no local annotated commit")
+        Err(err) => panic!("no local annotated commit"),
     };
 
-    let remote_commit = match repository.find_annotated_commit(origin_oid){
+    let remote_commit = match repository.find_annotated_commit(origin_oid) {
         Ok(commit) => commit,
-        Err(_) => panic!("no remote annotated commit")
+        Err(_) => panic!("no remote annotated commit"),
     };
 
     // Note that the underlying library function uses an unsafe block
     let merge_analysis = match repository.merge_analysis(&[&remote_commit]) {
         Ok((analysis, _)) => analysis,
-        Err(err) => panic!("Could not perform analysis => {}", err)
+        Err(err) => panic!("Could not perform analysis => {}", err),
     };
 
     println!("merge analysis => {:?}", merge_analysis);
 
     if !merge_analysis.contains(MergeAnalysis::ANALYSIS_FASTFORWARD) {
         println!("Fastforward cannot be be performed, please perform merge manually");
-        return Ok(())
+        return Ok(());
     };
 
     let tree_to_checkout = match repository.find_object(origin_oid, None) {
         Ok(tree) => tree,
-        Err(err) => panic!("MORE NOPE")
+        Err(err) => panic!("MORE NOPE"),
     };
 
     match repository.checkout_tree(&tree_to_checkout, None) {
         Ok(()) => println!("maybe success"),
-        Err(err) => panic!("NOEP")
+        Err(err) => panic!("NOEP"),
     };
 
     let mut head = match repository.head() {
         Ok(head) => head,
-        Err(err) => panic!("Could not get the head => {}", err)
+        Err(err) => panic!("Could not get the head => {}", err),
     };
 
-
-    match head.set_target(origin_oid, "fast_forward"){
+    match head.set_target(origin_oid, "fast_forward") {
         Ok(_) => println!("success?"),
-        Err(err) => panic!("failed to fast forward")     
+        Err(err) => panic!("failed to fast forward"),
     }
 
     match repository.cleanup_state() {
         Ok(()) => return Ok(()),
-        Err(err) => panic!("Failed to run cleanup state => {}", err)
+        Err(err) => panic!("Failed to run cleanup state => {}", err),
     };
-    
 }
 
 fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>) {
@@ -164,7 +163,7 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
 
         let path = grm_root.as_path().clone().join(sub_path);
 
-        if !path.exists(){
+        if !path.exists() {
             let repo = match Repository::clone(&remote, path) {
                 Ok(repo) => match repo.workdir() {
                     Some(dir) => println!("{}", dir.display()),
@@ -172,17 +171,16 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
                 },
                 Err(e) => panic!("failed to clone: {}", e),
             };
-        } else if(update) {
+        } else if (update) {
             let repo = match Repository::open(path) {
                 Ok(repo) => {
                     println!("not yet implemented");
                     //todo: find and update repo (git pull -ff)
                     git_pull_fastforward_only(&repo);
-                },
+                }
                 // fixme: better message
-                Err(e) => panic!("failed to clone: {}", e), 
+                Err(e) => panic!("failed to clone: {}", e),
             };
-
         }
     };
 }
@@ -243,5 +241,4 @@ fn main() {
         Grm::Root { all } => command_root(&git_config),
         _ => println!("Invalid command, use grm -h for help."),
     }
-
 }
