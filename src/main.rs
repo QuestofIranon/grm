@@ -15,28 +15,39 @@ use walkdir::WalkDir;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
 enum Grm {
+    /// Clone a remote repository under the grm or ghq root directory
     #[structopt(name = "get")]
-    /// NOT IMPLEMENTED
     Get {
+        /// Perform an update for an already cloned repository (roughyl equivalent to `git pull --ff-only`)
         #[structopt(long = "update", short = "u")]
         update: bool,
+        /// Use ssh <not implemented yet>
         #[structopt(short = "p")]
         ssh: bool,
+        /// Remote url
         remote: Option<String>,
     },
+
+    /// Print a list of repositories relative to their root
     #[structopt(name = "list")]
     List {
+        /// print the full path instead <will likely become default behavior>
         #[structopt(long = "full-path", short = "p")]
         full_path: bool,
+        /// forces the match to be exact <not implemented yet>
         #[structopt(long = "exact", short = "e")]
         exact: bool,
     },
+    /// Change directories to the given repository
     #[structopt(name = "look")]
-    /// NOT IMPLEMENTED
-    Look { repository: String },
+    Look {
+        /// Repository to look in 
+        repository: String 
+        },
+    /// prints the grm.root of the current repository if you are inside one, otherwise prints the main root <not fully implemented>
     #[structopt(name = "root")]
     Root {
-        //todo: handle multiple roots
+        /// prints all known grm roots <not implemented yet>
         #[structopt(long = "all", short = "a")]
         all: bool,
     },
