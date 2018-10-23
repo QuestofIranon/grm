@@ -6,8 +6,8 @@ extern crate walkdir;
 #[macro_use]
 extern crate failure;
 
-use failure::ResultExt;
-use git2::{Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
+use failure::{ResultExt, Error};
+use git2::{Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository, build::{CheckoutBuilder, RepoBuilder}};
 use pathdiff::diff_paths;
 use structopt::StructOpt;
 use walkdir::WalkDir;
@@ -54,7 +54,7 @@ enum Grm {
 }
 
 // performs similar action to git pull -ff-only
-fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Error> {
+fn git_pull_fastforward_only(repository: &Repository) -> Result<(), Error> {
     let mut remote = repository
         .find_remote("origin")
         .context("Could not find origin")?;
@@ -143,13 +143,35 @@ fn command_get(git_config: &Config, update: bool, _ssh: bool, remote: Option<Str
         let path = grm_root.as_path().clone().join(sub_path);
 
         if !path.exists() {
-            let _repo = match Repository::clone(&remote, path) {
+            println!("Cloning into '{}'", path.display());
+
+            let mut callbacks = RemoteCallbacks::new();
+            callbacks.transfer_progress(|progress| {
+                let network_percentage = (100 * progress.received_objects()) / progress.total_objects();
+                // let index_percentage = (100 * progress.indexed_objects()) / progress.total_objects();
+                let transferred_kbytes = progress.received_bytes() / 1024;
+
+                if progress.received_objects() == progress.total_objects() {
+                    println!("Resolving deltas: {}/{}", progress.indexed_deltas(), progress.total_deltas());
+                } else {
+                    println!("Receiving objects: {:3}% ({:5}/{:5})", network_percentage, transferred_kbytes, progress.total_objects());
+                };
+
+                true
+            });
+
+            let mut checkout = CheckoutBuilder::new();
+            let mut fetch_options = FetchOptions::new();
+            fetch_options.remote_callbacks(callbacks);
+
+            match RepoBuilder::new().fetch_options(fetch_options).with_checkout(checkout).clone(&remote, path.as_path()) {
                 Ok(repo) => match repo.workdir() {
                     Some(dir) => println!("{}", dir.display()),
                     None => println!("{}", repo.path().display()),
                 },
                 Err(e) => panic!("failed to clone: {}", e),
-            };
+            }
+
         } else if update {
             let _repo = match Repository::open(path) {
                 Ok(repo) => {
