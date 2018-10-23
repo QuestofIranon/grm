@@ -1,22 +1,16 @@
-#[macro_use]
-extern crate structopt;
 extern crate git2;
 extern crate pathdiff;
+extern crate structopt;
 extern crate walkdir;
 
 #[macro_use]
 extern crate failure;
 
-use failure::{Context, Error, ResultExt};
-use git2::build::{CheckoutBuilder, RepoBuilder};
-use git2::{
-    Config, Direction, FetchOptions, MergeAnalysis, MergeOptions, Progress, Refspec,
-    RemoteCallbacks, Repository, StatusOptions,
-};
+use failure::ResultExt;
+use git2::{Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
 use pathdiff::diff_paths;
-use std::{boxed::Box, env, path::Path, thread, time};
 use structopt::StructOpt;
-use walkdir::{DirEntry, WalkDir};
+use walkdir::WalkDir;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -66,7 +60,7 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
     let mut options = FetchOptions::new();
     options.remote_callbacks(remote_callbacks);
 
-    let fetch_results = remote
+    let _fetch_results = remote
         .fetch(&[], Some(&mut options), None)
         .context("Count not fetch from origin")?;
 
@@ -91,7 +85,7 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
         .refname_to_id(&format!("refs/remotes/origin/{}", branch_name))
         .context("Could not find oid from refname")?;
 
-    let local_commit = repository
+    let _local_commit = repository
         .find_annotated_commit(local_oid)
         .context("No local annotated commit")?;
 
@@ -127,12 +121,12 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
     Ok(())
 }
 
-fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>) {
+fn command_get(git_config: &Config, update: bool, _ssh: bool, remote: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
-        Err(error) => match git_config.get_path("ghq.root") {
+        Err(_error) => match git_config.get_path("ghq.root") {
             Ok(root) => root,
-            Err(error) => {
+            Err(_error) => {
                 println!("grm.root not specified in git config");
                 return;
             }
@@ -147,7 +141,7 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
         let path = grm_root.as_path().clone().join(sub_path);
 
         if !path.exists() {
-            let repo = match Repository::clone(&remote, path) {
+            let _repo = match Repository::clone(&remote, path) {
                 Ok(repo) => match repo.workdir() {
                     Some(dir) => println!("{}", dir.display()),
                     None => println!("{}", repo.path().display()),
@@ -155,7 +149,7 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
                 Err(e) => panic!("failed to clone: {}", e),
             };
         } else if update {
-            let repo = match Repository::open(path) {
+            let _repo = match Repository::open(path) {
                 Ok(repo) => {
                     match git_pull_fastforward_only(&repo) {
                         Ok(_) => return,
@@ -172,9 +166,9 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
 fn command_list(git_config: &Config, full_path: bool) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
-        Err(error) => match git_config.get_path("ghq.root") {
+        Err(_error) => match git_config.get_path("ghq.root") {
             Ok(root) => root,
-            Err(error) => {
+            Err(_error) => {
                 println!("grm.root not specified in git config");
                 return;
             }
@@ -206,9 +200,9 @@ fn command_list(git_config: &Config, full_path: bool) {
 fn command_root(git_config: &Config) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
-        Err(error) => match git_config.get_path("ghq.root") {
+        Err(_error) => match git_config.get_path("ghq.root") {
             Ok(root) => root,
-            Err(error) => {
+            Err(_error) => {
                 println!("grm.root not specified in git config");
                 return;
             }
@@ -218,6 +212,7 @@ fn command_root(git_config: &Config) {
     println!("{}", grm_root.as_path().display());
 }
 
+#[allow(unreachable_patterns)]
 fn main() {
     let subcommand = Grm::from_args();
 
@@ -231,9 +226,12 @@ fn main() {
             ssh,
             remote,
         } => command_get(&git_config, update, ssh, remote),
-        Grm::List { full_path, exact } => command_list(&git_config, full_path),
-        Grm::Look { repository } => println!("Unimplemented!"),
-        Grm::Root { all } => command_root(&git_config),
+        Grm::List {
+            full_path,
+            exact: _,
+        } => command_list(&git_config, full_path),
+        Grm::Look { repository: _ } => println!("Unimplemented!"),
+        Grm::Root { all: _ } => command_root(&git_config),
         _ => println!("Invalid command, use grm -h for help."),
     }
 }
