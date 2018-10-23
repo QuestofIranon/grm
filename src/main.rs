@@ -60,7 +60,7 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
     let mut options = FetchOptions::new();
     options.remote_callbacks(remote_callbacks);
 
-    let _fetch_results = remote
+    remote
         .fetch(&[], Some(&mut options), None)
         .context("Count not fetch from origin")?;
 
@@ -76,18 +76,9 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
         None => panic!("no name"),
     };
 
-    let local_oid = match head.target() {
-        Some(oid) => oid,
-        None => panic!("no local oid"),
-    };
-
     let origin_oid = repository
         .refname_to_id(&format!("refs/remotes/origin/{}", branch_name))
         .context("Could not find oid from refname")?;
-
-    let _local_commit = repository
-        .find_annotated_commit(local_oid)
-        .context("No local annotated commit")?;
 
     let remote_commit = repository
         .find_annotated_commit(origin_oid)
