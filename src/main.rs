@@ -1,21 +1,22 @@
 #[macro_use]
 extern crate structopt;
 extern crate git2;
-extern crate walkdir;
 extern crate pathdiff;
+extern crate walkdir;
 
-#[macro_use] extern crate failure;
+#[macro_use]
+extern crate failure;
 
+use failure::{Context, Error, ResultExt};
 use git2::build::{CheckoutBuilder, RepoBuilder};
 use git2::{
     Config, Direction, FetchOptions, MergeAnalysis, MergeOptions, Progress, Refspec,
     RemoteCallbacks, Repository, StatusOptions,
 };
+use pathdiff::diff_paths;
 use std::{boxed::Box, env, path::Path, thread, time};
 use structopt::StructOpt;
 use walkdir::{DirEntry, WalkDir};
-use pathdiff::diff_paths;
-use failure::{Error, ResultExt, Context};
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -49,9 +50,10 @@ enum Grm {
 
 // performs similar action to git pull -ff-only
 fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Error> {
+    let mut remote = repository
+        .find_remote("origin")
+        .context("Could not find origin")?;
 
-    let mut remote = repository.find_remote("origin").context("Could not find origin")?;
-    
     let mut remote_callbacks = RemoteCallbacks::new();
     remote_callbacks.transfer_progress(|progress| {
         let owned_progress = progress.to_owned();
@@ -64,7 +66,9 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
     let mut options = FetchOptions::new();
     options.remote_callbacks(remote_callbacks);
 
-    let fetch_results = remote.fetch(&[], Some(&mut options), None).context("Count not fetch from origin")?;
+    let fetch_results = remote
+        .fetch(&[], Some(&mut options), None)
+        .context("Count not fetch from origin")?;
 
     let head = repository.head().context("Could not get the head")?;
 
@@ -75,7 +79,7 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
 
     let branch_name = match head.shorthand() {
         Some(branch_name) => branch_name,
-        None => panic!("no name")
+        None => panic!("no name"),
     };
 
     let local_oid = match head.target() {
@@ -83,29 +87,40 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), failure::Err
         None => panic!("no local oid"),
     };
 
-    let origin_oid = repository.refname_to_id(&format!("refs/remotes/origin/{}", branch_name)).context("Could not find oid from refname")?;
+    let origin_oid = repository
+        .refname_to_id(&format!("refs/remotes/origin/{}", branch_name))
+        .context("Could not find oid from refname")?;
 
-    let local_commit = repository.find_annotated_commit(local_oid).context("No local annotated commit")?;
+    let local_commit = repository
+        .find_annotated_commit(local_oid)
+        .context("No local annotated commit")?;
 
-    let remote_commit = repository.find_annotated_commit(origin_oid).context("No remote annotated commit")?;
+    let remote_commit = repository
+        .find_annotated_commit(origin_oid)
+        .context("No remote annotated commit")?;
 
     // Note that the underlying library function uses an unsafe block
     let merge_analysis = match repository.merge_analysis(&[&remote_commit]) {
         Ok((analysis, _)) => analysis,
-        Err(err) => return Err(format_err!("Could not perform analysis {}", err))
-};
+        Err(err) => return Err(format_err!("Could not perform analysis {}", err)),
+    };
 
     if !merge_analysis.contains(MergeAnalysis::ANALYSIS_FASTFORWARD) {
         println!("Fastforward cannot be be performed, please perform merge manually");
         return Ok(());
     };
 
-    let tree_to_checkout = repository.find_object(origin_oid, None).context("Could not find tree")?;
+    let tree_to_checkout = repository
+        .find_object(origin_oid, None)
+        .context("Could not find tree")?;
 
-    repository.checkout_tree(&tree_to_checkout, None).context("Failed to checkout tree")?;
+    repository
+        .checkout_tree(&tree_to_checkout, None)
+        .context("Failed to checkout tree")?;
 
     let mut head = repository.head().context("Could not get the head")?;
-    head.set_target(origin_oid, "fast_forward").context("Could not fastforward")?;
+    head.set_target(origin_oid, "fast_forward")
+        .context("Could not fastforward")?;
 
     repository.cleanup_state().context("Failed to cleanup")?;
 
@@ -142,11 +157,11 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
         } else if update {
             let repo = match Repository::open(path) {
                 Ok(repo) => {
-                    match git_pull_fastforward_only(&repo){
+                    match git_pull_fastforward_only(&repo) {
                         Ok(_) => return,
-                        Err(error) => println!("{}", error)
+                        Err(error) => println!("{}", error),
                     };
-                },
+                }
                 // fixme: better message
                 Err(e) => panic!("failed to clone: {}", e),
             };
@@ -167,7 +182,7 @@ fn command_list(git_config: &Config, full_path: bool) {
     };
 
     for entry in WalkDir::new(&grm_root)
-        .sort_by(|a,b| a.file_name().cmp(b.file_name()))
+        .sort_by(|a, b| a.file_name().cmp(b.file_name()))
         .min_depth(0)
         .max_depth(4)
         .into_iter()
@@ -177,9 +192,9 @@ fn command_list(git_config: &Config, full_path: bool) {
             if full_path {
                 println!("{}", entry.path().display());
             } else {
-                let relative_path = match diff_paths(&entry.path(), &grm_root){
+                let relative_path = match diff_paths(&entry.path(), &grm_root) {
                     Some(path) => path,
-                    None => return
+                    None => return,
                 };
 
                 println!("{}", relative_path.as_path().display());
