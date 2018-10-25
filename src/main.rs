@@ -6,8 +6,11 @@ extern crate walkdir;
 #[macro_use]
 extern crate failure;
 
-use failure::{ResultExt, Error};
-use git2::{Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository, build::{CheckoutBuilder, RepoBuilder}};
+use failure::{Error, ResultExt};
+use git2::{
+    build::{CheckoutBuilder, RepoBuilder},
+    Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository,
+};
 use pathdiff::diff_paths;
 use structopt::StructOpt;
 use walkdir::WalkDir;
@@ -34,16 +37,18 @@ enum Grm {
         /// print the full path instead <will likely become default behavior>
         #[structopt(long = "full-path", short = "p")]
         full_path: bool,
-        /// forces the match to be exact <not implemented yet>
+        /// forces the match to be exact (only if query is provided)
         #[structopt(long = "exact", short = "e")]
         exact: bool,
+        /// Search Query
+        query: Option<String>,
     },
     /// Change directories to the given repository
     #[structopt(name = "look")]
     Look {
-        /// Repository to look in 
-        repository: String 
-        },
+        /// Repository to look in
+        repository: String,
+    },
     /// prints the grm.root of the current repository if you are inside one, otherwise prints the main root <not fully implemented>
     #[structopt(name = "root")]
     Root {
@@ -147,14 +152,24 @@ fn command_get(git_config: &Config, update: bool, _ssh: bool, remote: Option<Str
 
             let mut callbacks = RemoteCallbacks::new();
             callbacks.transfer_progress(|progress| {
-                let network_percentage = (100 * progress.received_objects()) / progress.total_objects();
+                let network_percentage =
+                    (100 * progress.received_objects()) / progress.total_objects();
                 // let index_percentage = (100 * progress.indexed_objects()) / progress.total_objects();
                 let transferred_kbytes = progress.received_bytes() / 1024;
 
                 if progress.received_objects() == progress.total_objects() {
-                    println!("Resolving deltas: {}/{}", progress.indexed_deltas(), progress.total_deltas());
+                    println!(
+                        "Resolving deltas: {}/{}",
+                        progress.indexed_deltas(),
+                        progress.total_deltas()
+                    );
                 } else {
-                    println!("Receiving objects: {:3}% ({:5}/{:5})", network_percentage, transferred_kbytes, progress.total_objects());
+                    println!(
+                        "Receiving objects: {:3}% ({:5}/{:5})",
+                        network_percentage,
+                        transferred_kbytes,
+                        progress.total_objects()
+                    );
                 };
 
                 true
@@ -164,14 +179,17 @@ fn command_get(git_config: &Config, update: bool, _ssh: bool, remote: Option<Str
             let mut fetch_options = FetchOptions::new();
             fetch_options.remote_callbacks(callbacks);
 
-            match RepoBuilder::new().fetch_options(fetch_options).with_checkout(checkout).clone(&remote, path.as_path()) {
+            match RepoBuilder::new()
+                .fetch_options(fetch_options)
+                .with_checkout(checkout)
+                .clone(&remote, path.as_path())
+            {
                 Ok(repo) => match repo.workdir() {
                     Some(dir) => println!("{}", dir.display()),
                     None => println!("{}", repo.path().display()),
                 },
                 Err(e) => panic!("failed to clone: {}", e),
             }
-
         } else if update {
             let _repo = match Repository::open(path) {
                 Ok(repo) => {
@@ -187,7 +205,7 @@ fn command_get(git_config: &Config, update: bool, _ssh: bool, remote: Option<Str
     };
 }
 
-fn command_list(git_config: &Config, full_path: bool) {
+fn command_list(git_config: &Config, full_path: bool, exact_match: bool, query: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
         Err(_error) => match git_config.get_path("ghq.root") {
@@ -199,23 +217,84 @@ fn command_list(git_config: &Config, full_path: bool) {
         },
     };
 
-    for entry in WalkDir::new(&grm_root)
-        .sort_by(|a, b| a.file_name().cmp(b.file_name()))
-        .min_depth(0)
-        .max_depth(4)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        if entry.path().join(".git").exists() {
-            if full_path {
-                println!("{}", entry.path().display());
-            } else {
-                let relative_path = match diff_paths(&entry.path(), &grm_root) {
-                    Some(path) => path,
-                    None => return,
+    match query {
+        Some(query) => {
+            for entry in WalkDir::new(&grm_root)
+                .sort_by(|a, b| a.file_name().cmp(b.file_name()))
+                .min_depth(0)
+                .max_depth(4)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                let entry_path = match entry.path().as_os_str().to_str() {
+                    Some(entry_path) => entry_path,
+                    None => continue,
                 };
 
-                println!("{}", relative_path.as_path().display());
+                if exact_match {
+                    //fixme: make this cleanse windows only?
+                    let cleansed_query = query.replace("\\", "/");
+                    let cleansed_entry = entry_path.replace("\\", "/");
+
+                    let entry_parts: Vec<&str> = cleansed_entry.rsplit("/").collect();
+                    if !(entry_parts.len() > 2) {
+                        continue;
+                    };
+
+                    let query_parts: Vec<&str> = cleansed_query.split("/").collect();
+
+                    if query_parts.len() == 2 {
+                        if (entry_parts[0] != query_parts[1]) || (entry_parts[1] != query_parts[0])
+                        {
+                            continue;
+                        }
+                    } else if query_parts.len() == 1 {
+                        if entry_parts[0] != query_parts[0] {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                } else {
+                    if !(entry_path.contains(&query)) {
+                        continue;
+                    }
+                }
+
+                if entry.path().join(".git").exists() {
+                    if full_path {
+                        println!("{}", entry.path().display());
+                    } else {
+                        let relative_path = match diff_paths(&entry.path(), &grm_root) {
+                            Some(path) => path,
+                            None => continue,
+                        };
+
+                        println!("{}", relative_path.as_path().display());
+                    }
+                }
+            }
+        }
+        None => {
+            for entry in WalkDir::new(&grm_root)
+                .sort_by(|a, b| a.file_name().cmp(b.file_name()))
+                .min_depth(0)
+                .max_depth(4)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
+                if entry.path().join(".git").exists() {
+                    if full_path {
+                        println!("{}", entry.path().display());
+                    } else {
+                        let relative_path = match diff_paths(&entry.path(), &grm_root) {
+                            Some(path) => path,
+                            None => continue,
+                        };
+
+                        println!("{}", relative_path.as_path().display());
+                    }
+                }
             }
         }
     }
@@ -252,8 +331,9 @@ fn main() {
         } => command_get(&git_config, update, ssh, remote),
         Grm::List {
             full_path,
-            exact: _,
-        } => command_list(&git_config, full_path),
+            exact,
+            query,
+        } => command_list(&git_config, full_path, exact, query),
         Grm::Look { repository: _ } => println!("Unimplemented!"),
         Grm::Root { all: _ } => command_root(&git_config),
         _ => println!("Invalid command, use grm -h for help."),
