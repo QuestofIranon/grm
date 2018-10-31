@@ -6,7 +6,7 @@ extern crate walkdir;
 #[macro_use]
 extern crate failure;
 
-pub mod git;
+mod git;
 
 use failure::{Error, ResultExt};
 use git2::{
@@ -16,6 +16,8 @@ use git2::{
 use pathdiff::diff_paths;
 use structopt::StructOpt;
 use walkdir::WalkDir;
+use git::clone::Clone;
+
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -130,7 +132,7 @@ fn git_pull_fastforward_only(repository: &Repository) -> Result<(), Error> {
     Ok(())
 }
 
-fn command_get(git_config: &Config, update: bool, _ssh: bool, remote: Option<String>) {
+fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
         Err(_error) => match git_config.get_path("ghq.root") {
@@ -150,48 +152,8 @@ fn command_get(git_config: &Config, update: bool, _ssh: bool, remote: Option<Str
         let path = grm_root.as_path().clone().join(sub_path);
 
         if !path.exists() {
-            println!("Cloning into '{}'", path.display());
-
-            let mut callbacks = RemoteCallbacks::new();
-            callbacks.transfer_progress(|progress| {
-                let network_percentage =
-                    (100 * progress.received_objects()) / progress.total_objects();
-                // let index_percentage = (100 * progress.indexed_objects()) / progress.total_objects();
-                let transferred_kbytes = progress.received_bytes() / 1024;
-
-                if progress.received_objects() == progress.total_objects() {
-                    println!(
-                        "Resolving deltas: {}/{}",
-                        progress.indexed_deltas(),
-                        progress.total_deltas()
-                    );
-                } else {
-                    println!(
-                        "Receiving objects: {:3}% ({:5}/{:5})",
-                        network_percentage,
-                        transferred_kbytes,
-                        progress.total_objects()
-                    );
-                };
-
-                true
-            });
-
-            let mut checkout = CheckoutBuilder::new();
-            let mut fetch_options = FetchOptions::new();
-            fetch_options.remote_callbacks(callbacks);
-
-            match RepoBuilder::new()
-                .fetch_options(fetch_options)
-                .with_checkout(checkout)
-                .clone(&remote, path.as_path())
-            {
-                Ok(repo) => match repo.workdir() {
-                    Some(dir) => println!("{}", dir.display()),
-                    None => println!("{}", repo.path().display()),
-                },
-                Err(e) => panic!("failed to clone: {}", e),
-            }
+            let clone = Clone::new(path, ssh, remote.clone());
+            clone.run();
         } else if update {
             let _repo = match Repository::open(path) {
                 Ok(repo) => {
