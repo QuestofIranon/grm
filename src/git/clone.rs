@@ -1,14 +1,14 @@
 use super::command_state::CommandState;
-use git2::build::CheckoutBuilder;
-use git2::build::RepoBuilder;
-use git2::FetchOptions;
-use git2::RemoteCallbacks;
-use git2::Repository;
-use std::cell::RefCell;
-use std::io;
-use std::io::Write;
-use std::path::Path;
-use std::path::PathBuf;
+use git2::{
+    build::{CheckoutBuilder, RepoBuilder},
+    FetchOptions, RemoteCallbacks, Repository,
+};
+use std::{
+    cell::RefCell,
+    io,
+    io::Write,
+    path::{Path, PathBuf},
+};
 
 pub struct Clone {
     pub(crate) state: RefCell<CommandState>,
