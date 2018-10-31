@@ -6,6 +6,8 @@ extern crate walkdir;
 #[macro_use]
 extern crate failure;
 
+pub mod git;
+
 use failure::{Error, ResultExt};
 use git2::{
     build::{CheckoutBuilder, RepoBuilder},
@@ -317,13 +319,13 @@ fn command_root(git_config: &Config) {
 
 #[allow(unreachable_patterns)]
 fn main() {
-    let subcommand = Grm::from_args();
+    let sub_command = Grm::from_args();
 
     // fixme: better messages?
     let git_config =
         Config::open_default().expect("No git config found, do you have git installed?");
 
-    match subcommand {
+    match sub_command {
         Grm::Get {
             update,
             ssh,
