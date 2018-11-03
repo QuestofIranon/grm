@@ -8,16 +8,11 @@ extern crate failure;
 
 mod git;
 
-use failure::{Error, ResultExt};
-use git2::{
-    build::{CheckoutBuilder, RepoBuilder},
-    Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository,
-};
+use git::{clone::Clone, pull::{ Pull, MergeOption}};
+use git2::Config;
 use pathdiff::diff_paths;
 use structopt::StructOpt;
 use walkdir::WalkDir;
-use git::clone::Clone;
-
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -62,76 +57,6 @@ enum Grm {
     },
 }
 
-// performs similar action to git pull -ff-only
-fn git_pull_fastforward_only(repository: &Repository) -> Result<(), Error> {
-    let mut remote = repository
-        .find_remote("origin")
-        .context("Could not find origin")?;
-
-    let mut remote_callbacks = RemoteCallbacks::new();
-    remote_callbacks.transfer_progress(|progress| {
-        let owned_progress = progress.to_owned();
-
-        println!("total objects: {}", owned_progress.total_objects());
-
-        true
-    });
-
-    let mut options = FetchOptions::new();
-    options.remote_callbacks(remote_callbacks);
-
-    remote
-        .fetch(&[], Some(&mut options), None)
-        .context("Count not fetch from origin")?;
-
-    let head = repository.head().context("Could not get the head")?;
-
-    if !head.is_branch() {
-        println!("Head is not currently pointing to a branch, cannot perform update");
-        return Ok(());
-    };
-
-    let branch_name = match head.shorthand() {
-        Some(branch_name) => branch_name,
-        None => panic!("no name"),
-    };
-
-    let origin_oid = repository
-        .refname_to_id(&format!("refs/remotes/origin/{}", branch_name))
-        .context("Could not find oid from refname")?;
-
-    let remote_commit = repository
-        .find_annotated_commit(origin_oid)
-        .context("No remote annotated commit")?;
-
-    // Note that the underlying library function uses an unsafe block
-    let merge_analysis = match repository.merge_analysis(&[&remote_commit]) {
-        Ok((analysis, _)) => analysis,
-        Err(err) => return Err(format_err!("Could not perform analysis {}", err)),
-    };
-
-    if !merge_analysis.contains(MergeAnalysis::ANALYSIS_FASTFORWARD) {
-        println!("Fastforward cannot be be performed, please perform merge manually");
-        return Ok(());
-    };
-
-    let tree_to_checkout = repository
-        .find_object(origin_oid, None)
-        .context("Could not find tree")?;
-
-    repository
-        .checkout_tree(&tree_to_checkout, None)
-        .context("Failed to checkout tree")?;
-
-    let mut head = repository.head().context("Could not get the head")?;
-    head.set_target(origin_oid, "fast_forward")
-        .context("Could not fastforward")?;
-
-    repository.cleanup_state().context("Failed to cleanup")?;
-
-    Ok(())
-}
-
 fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
@@ -155,15 +80,11 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
             let clone = Clone::new(path, ssh, remote.clone());
             clone.run();
         } else if update {
-            let _repo = match Repository::open(path) {
-                Ok(repo) => {
-                    match git_pull_fastforward_only(&repo) {
-                        Ok(_) => return,
-                        Err(error) => println!("{}", error),
-                    };
-                }
-                // fixme: better message
-                Err(e) => panic!("failed to clone: {}", e),
+            let pull = Pull::new(path, MergeOption::FF_ONLY, ssh);
+
+            match pull.run() {
+                Ok(_) => return,
+                Err(error) => println!("{}", error),
             };
         }
     };

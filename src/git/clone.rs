@@ -26,13 +26,16 @@ impl Clone {
             current: 0,
         });
 
-        Self { state, into: path, ssh, remote }
+        Self {
+            state,
+            into: path,
+            ssh,
+            remote,
+        }
     }
 
     pub fn run(&self) {
-        //let path = &self.state.borrow().path;
-        //println!("Cloning into '{}'", path.display());
-
+        
         let mut callbacks = RemoteCallbacks::new();
         callbacks.transfer_progress(|progress| {
 
@@ -81,7 +84,6 @@ impl Clone {
 
         let mut checkout = CheckoutBuilder::new();
         checkout.progress(|path, cur, total| {
-
             let mut state = self.state.borrow_mut();
 
             state.path = match path {

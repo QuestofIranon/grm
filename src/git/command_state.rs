@@ -1,5 +1,3 @@
-use git2::Progress;
-use std::path::Path;
 use std::path::PathBuf;
 
 // CommandState is the common state across all (used) git commands
