@@ -12,6 +12,7 @@ use std::{
 
 pub struct Clone {
     pub(crate) state: RefCell<CommandState>,
+    into: PathBuf,
     ssh: bool,
     remote: String,
 }
@@ -19,19 +20,18 @@ pub struct Clone {
 impl Clone {
     pub fn new(path: PathBuf, ssh: bool, remote: String) -> Clone {
         let state = RefCell::new(CommandState {
-            path,
-            new_line: false,
+            path: path.clone(),
+            new_line: true,
             total: 0,
             current: 0,
         });
 
-        Self { state, ssh, remote }
+        Self { state, into: path, ssh, remote }
     }
 
     pub fn run(&self) {
-        let mut state = self.state.borrow_mut();
-        println!("Cloning into '{}'", state.path.display());
-        state.new_line = true;
+        //let path = &self.state.borrow().path;
+        //println!("Cloning into '{}'", path.display());
 
         let mut callbacks = RemoteCallbacks::new();
         callbacks.transfer_progress(|progress| {
@@ -81,6 +81,7 @@ impl Clone {
 
         let mut checkout = CheckoutBuilder::new();
         checkout.progress(|path, cur, total| {
+
             let mut state = self.state.borrow_mut();
 
             state.path = match path {
@@ -95,10 +96,12 @@ impl Clone {
         let mut fetch_options = FetchOptions::new();
         fetch_options.remote_callbacks(callbacks);
 
+        println!("Cloning into '{}'", &self.into.as_path().display());
+
         match RepoBuilder::new()
             .fetch_options(fetch_options)
             .with_checkout(checkout)
-            .clone(&self.remote, state.path.as_path())
+            .clone(&self.remote, &self.into)
         {
             Ok(repo) => match repo.workdir() {
                 Some(dir) => println!("{}", dir.display()),
