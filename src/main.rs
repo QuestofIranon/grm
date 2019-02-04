@@ -71,8 +71,8 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
 
     if let Some(remote) = remote {
         let sub_path = remote
-            .trim_left_matches(&"https://")
-            .trim_right_matches(&".git");
+            .trim_start_matches(&"https://")
+            .trim_end_matches(&".git");
 
         let path = grm_root.as_path().join(sub_path);
 

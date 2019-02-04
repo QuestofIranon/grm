@@ -1,11 +1,9 @@
 use failure::{Error, ResultExt};
 use git2::{FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
 use std::{
-    cell::RefCell,
     path::PathBuf,
+	sync::{Arc, RwLock}
 };
-use std::sync::Arc;
-use std::sync::RwLock;
 
 pub enum MergeOption {
 	FastForwardOnly, // currently this is the only merge option used

@@ -1,9 +1,8 @@
 use git2::{
     build::{CheckoutBuilder, RepoBuilder},
-    FetchOptions, RemoteCallbacks, Repository,
+    FetchOptions, RemoteCallbacks
 };
 use std::{
-    cell::RefCell,
     io,
     io::Write,
     path::{Path, PathBuf},
