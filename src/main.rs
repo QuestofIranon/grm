@@ -14,6 +14,11 @@ use pathdiff::diff_paths;
 use structopt::StructOpt;
 use walkdir::WalkDir;
 use std::fs;
+use once_cell::unsync::Lazy;
+use regex::Regex;
+use failure::{Error, err_msg};
+use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -108,98 +113,88 @@ fn command_get(git_config: &Config, update: bool, replace: bool, ssh: bool, remo
 }
 
 fn command_list(git_config: &Config, full_path: bool, exact_match: bool, query: Option<String>) {
-    let grm_root = match git_config.get_path("grm.root") {
-        Ok(root) => root,
-        Err(_error) => match git_config.get_path("ghq.root") {
-            Ok(root) => root,
-            Err(_error) => {
-                println!("grm.root not specified in git config");
-                return;
-            }
-        },
-    };
+	let grm_root = match git_config.get_path("grm.root") {
+		Ok(root) => root,
+		Err(_error) => match git_config.get_path("ghq.root") {
+			Ok(root) => root,
+			Err(_error) => {
+				println!("grm.root not specified in git config");
+				return;
+			}
+		},
+	};
 
-    match query {
-        Some(query) => {
-            for entry in WalkDir::new(&grm_root)
-                .sort_by(|a, b| a.file_name().cmp(b.file_name()))
-                .min_depth(0)
-                .max_depth(4)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                let entry_path = match entry.path().as_os_str().to_str() {
-                    Some(entry_path) => entry_path,
-                    None => continue,
-                };
+	let results: Vec<PathBuf> = match query {
+		Some(query) => {
+			WalkDir::new(&grm_root)
+				.sort_by(|a, b| a.file_name().cmp(b.file_name()))
+				.min_depth(0)
+				.max_depth(4)
+				.into_iter()
+				.filter_map(Result::ok)
+				.filter_map(|p| {
+					p.path()
+						.as_os_str()
+						.to_os_string()
+						.to_str()
+						.map_or_else(|| None, |e| {
+							let regex = Lazy::new(|| {
+								// if this errors out then let the panic occur
+								Regex::new(&format!("{}", query
+									.to_lowercase()
+									.replace("\\", "/")
+									.replace("/", r"\/")))
+									.unwrap()
+							});
 
-                if exact_match {
-                    //fixme: make this cleanse windows only?
-                    let cleansed_query = query.replace("\\", "/");
-                    let cleansed_entry = entry_path.replace("\\", "/");
+							let mut normalized_path = e.to_lowercase()
+								.replace("\\", "/");
 
-                    let entry_parts: Vec<&str> = cleansed_entry.rsplit("/").collect();
-                    if !(entry_parts.len() > 2) {
-                        continue;
-                    };
+							if exact_match {
+								let path_parts = normalized_path.rsplit("/").collect::<Vec<&str>>();
 
-                    let query_parts: Vec<&str> = cleansed_query.split("/").collect();
+								if !(path_parts.len() > 2) {
+									return None;
+								}
 
-                    if query_parts.len() == 2 {
-                        if (entry_parts[0] != query_parts[1]) || (entry_parts[1] != query_parts[0])
-                        {
-                            continue;
-                        }
-                    } else if query_parts.len() == 1 {
-                        if entry_parts[0] != query_parts[0] {
-                            continue;
-                        }
-                    } else {
-                        continue;
-                    }
-                } else {
-                    if !(entry_path.contains(&query)) {
-                        continue;
-                    }
-                }
+								normalized_path = String::from(path_parts[path_parts.len() -1])
+							}
 
-                if entry.path().join(".git").exists() {
-                    if full_path {
-                        println!("{}", entry.path().display());
-                    } else {
-                        let relative_path = match diff_paths(&entry.path(), &grm_root) {
-                            Some(path) => path,
-                            None => continue,
-                        };
+							if !regex.is_match(&normalized_path) {
+								return None;
+							}
 
-                        println!("{}", relative_path.as_path().display());
-                    }
-                }
-            }
-        }
-        None => {
-            for entry in WalkDir::new(&grm_root)
-                .sort_by(|a, b| a.file_name().cmp(b.file_name()))
-                .min_depth(0)
-                .max_depth(4)
-                .into_iter()
-                .filter_map(|e| e.ok())
-            {
-                if entry.path().join(".git").exists() {
-                    if full_path {
-                        println!("{}", entry.path().display());
-                    } else {
-                        let relative_path = match diff_paths(&entry.path(), &grm_root) {
-                            Some(path) => path,
-                            None => continue,
-                        };
+							Some(p.path().to_path_buf())
+						})
+				})
+				.collect()
+		},
+		None => {
+			WalkDir::new(&grm_root)
+				.sort_by(|a, b| a.file_name().cmp(b.file_name()))
+				.min_depth(0)
+				.max_depth(4)
+				.into_iter()
+				.filter_map(Result::ok)
+				.map(|p| p.path().to_path_buf())
+				.collect()
+		}
+	};
 
-                        println!("{}", relative_path.as_path().display());
-                    }
-                }
-            }
-        }
-    }
+	for entry in results {
+		if entry.as_path().join(".git").exists() {
+			if full_path {
+				println!("{}", entry.as_path().display());
+			} else {
+				let relative_path = match diff_paths(&entry.as_path(), &grm_root) {
+					Some(path) => path,
+					None => continue,
+				};
+
+				println!("{}", relative_path.as_path().display());
+			}
+		}
+	}
 }
 
 fn command_root(git_config: &Config) {
