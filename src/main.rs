@@ -13,6 +13,7 @@ use git2::Config;
 use pathdiff::diff_paths;
 use structopt::StructOpt;
 use walkdir::WalkDir;
+use std::fs;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -26,6 +27,9 @@ enum Grm {
         /// Use ssh <not implemented yet>
         #[structopt(short = "p")]
         ssh: bool,
+		/// Replace the local repository
+		#[structopt(long = "replace", short = "r")]
+		replace: bool,
         /// Remote url
         remote: Option<String>,
     },
@@ -57,7 +61,7 @@ enum Grm {
     },
 }
 
-fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<String>) {
+fn command_get(git_config: &Config, update: bool, replace: bool, ssh: bool, remote: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
         Err(_error) => match git_config.get_path("ghq.root") {
@@ -79,14 +83,27 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
         if !path.exists() {
             let mut clone = GitClone::new(path, ssh, remote);
             clone.run();
-        } else if update {
-            let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
+        } else{
+			if replace {
+				//fixme: better error handling
+				fs::remove_dir_all(&path).unwrap();
 
-            match pull.run() {
-                Ok(_) => return,
-                Err(error) => println!("{}", error),
-            };
-        }
+				let mut clone = GitClone::new(path, ssh, remote);
+				clone.run();
+				return;
+			}
+
+			if update {
+				let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
+
+				match pull.run() {
+					Ok(_) => return,
+					Err(error) => println!("{}", error),
+				};
+
+				return;
+			}
+		}
     };
 }
 
@@ -212,8 +229,9 @@ fn main() {
         Grm::Get {
             update,
             ssh,
+			replace,
             remote,
-        } => command_get(&git_config, update, ssh, remote),
+        } => command_get(&git_config, update, replace, ssh, remote),
         Grm::List {
             full_path,
             exact,
