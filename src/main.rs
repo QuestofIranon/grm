@@ -8,7 +8,7 @@ extern crate failure;
 
 mod git;
 
-use git::{clone::Clone, pull::{ Pull, MergeOption}};
+use git::{clone::GitClone, pull::{ GitPull, MergeOption}};
 use git2::Config;
 use pathdiff::diff_paths;
 use structopt::StructOpt;
@@ -20,7 +20,7 @@ enum Grm {
     /// Clone a remote repository under the grm or ghq root directory
     #[structopt(name = "get")]
     Get {
-        /// Perform an update for an already cloned repository (roughyl equivalent to `git pull --ff-only`)
+        /// Perform an update for an already cloned repository (roughly equivalent to `git pull --ff-only`)
         #[structopt(long = "update", short = "u")]
         update: bool,
         /// Use ssh <not implemented yet>
@@ -74,13 +74,13 @@ fn command_get(git_config: &Config, update: bool, ssh: bool, remote: Option<Stri
             .trim_left_matches(&"https://")
             .trim_right_matches(&".git");
 
-        let path = grm_root.as_path().clone().join(sub_path);
+        let path = grm_root.as_path().join(sub_path);
 
         if !path.exists() {
-            let clone = Clone::new(path, ssh, remote.clone());
+            let mut clone = GitClone::new(path, ssh, remote);
             clone.run();
         } else if update {
-            let pull = Pull::new(path, MergeOption::FF_ONLY, ssh);
+            let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
 
             match pull.run() {
                 Ok(_) => return,

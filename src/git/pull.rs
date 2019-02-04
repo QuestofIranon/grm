@@ -1,47 +1,56 @@
-use super::command_state::CommandState;
 use failure::{Error, ResultExt};
 use git2::{FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
 use std::{
     cell::RefCell,
     path::PathBuf,
 };
+use std::sync::Arc;
+use std::sync::RwLock;
 
 pub enum MergeOption {
-    FF_ONLY, // currently this is the only merge option used
+	FastForwardOnly, // currently this is the only merge option used
 }
 
-pub struct Pull {
-    pub(crate) state: RefCell<CommandState>,
+struct Inner {
+	new_line: bool,
+	total: usize,
+	current: usize,
+}
+
+pub struct GitPull {
+    path: PathBuf,
+	inner: Arc<RwLock<Inner>>,
     repository: Repository,
     merge_option: MergeOption,
     ssh: bool,
 }
 
-impl Pull {
-    pub fn new(path: PathBuf, merge_option: MergeOption, ssh: bool) -> Pull {
+impl GitPull {
+    pub fn new(path: PathBuf, merge_option: MergeOption, ssh: bool) -> GitPull {
         let repository = match Repository::open(path.clone()) {
             Ok(repo) => repo,
             // fixme: better error handling here
             Err(_) => panic!("failed to open repo at: {}", path.as_path().display()),
         };
-        
-        
-        let state = RefCell::new(CommandState {
-            path,
-            new_line: true,
-            total: 0,
-            current: 0,
-        });
+
+		let inner = Arc::new(RwLock::new(
+			Inner{
+				new_line: true,
+				total: 0,
+				current: 0,
+			}
+		));
 
         Self {
-            state,
+			path,
+			inner,
             repository,
             merge_option,
             ssh,
         }
     }
 
-    pub fn run(&self) -> Result<(), Error> {
+    pub fn run(&mut self) -> Result<(), Error> {
         let mut remote = self
             .repository
             .find_remote("origin")
@@ -49,12 +58,16 @@ impl Pull {
 
         let mut remote_callbacks = RemoteCallbacks::new();
         remote_callbacks.transfer_progress(|progress| {
-            let mut state = self.state.borrow_mut();
 
-            if !state.new_line {
-                println!();
-                state.new_line = true;
-            }
+			match self.inner.write() {
+				Ok(mut inner) => {
+					if !inner.new_line {
+						println!();
+						inner.new_line = true;
+					}
+				},
+				Err(_) => panic!()
+			}
 
             print!("total objects: {} \r", progress.total_objects());
 
@@ -97,7 +110,7 @@ impl Pull {
         };
 
         match &self.merge_option {
-            MergeOption::FF_ONLY => {
+            MergeOption::FastForwardOnly => {
                 // perform a fastforward only
                 if !merge_analysis.contains(MergeAnalysis::ANALYSIS_FASTFORWARD) {
                     println!("Fastforward cannot be be performed, please perform merge manually");
