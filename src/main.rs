@@ -66,6 +66,32 @@ enum Grm {
     },
 }
 
+impl Drop for Grm {
+	#[allow(unreachable_patterns)]
+	fn drop(&mut self) {
+		// fixme: better messages?
+		let git_config =
+			Config::open_default().expect("No git config found, do you have git installed?");
+
+		match self {
+			Grm::Get {
+				update,
+				ssh,
+				replace,
+				remote,
+		} => command_get(&git_config, *update, *replace, *ssh, remote.take()),
+			Grm::List {
+				full_path,
+				exact,
+				query,
+			} => command_list(&git_config, *full_path, *exact, query.take()),
+			Grm::Look { repository: _ } => println!("Unimplemented!"),
+			Grm::Root { all: _ } => command_root(&git_config),
+			_ => println!("Invalid command, use grm -h for help."),
+		}
+	}
+}
+
 fn command_get(git_config: &Config, update: bool, replace: bool, ssh: bool, remote: Option<String>) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
@@ -212,28 +238,7 @@ fn command_root(git_config: &Config) {
     println!("{}", grm_root.as_path().display());
 }
 
-#[allow(unreachable_patterns)]
+
 fn main() {
-    let sub_command = Grm::from_args();
-
-    // fixme: better messages?
-    let git_config =
-        Config::open_default().expect("No git config found, do you have git installed?");
-
-    match sub_command {
-        Grm::Get {
-            update,
-            ssh,
-			replace,
-            remote,
-        } => command_get(&git_config, update, replace, ssh, remote),
-        Grm::List {
-            full_path,
-            exact,
-            query,
-        } => command_list(&git_config, full_path, exact, query),
-        Grm::Look { repository: _ } => println!("Unimplemented!"),
-        Grm::Root { all: _ } => command_root(&git_config),
-        _ => println!("Invalid command, use grm -h for help."),
-    }
+    let _ = Grm::from_args();
 }

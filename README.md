@@ -1,5 +1,8 @@
 # grm
-Git Repository Manager inspired by [ghq](https://github.com/motemen/ghq)
+
+## About
+grm is a git repository manager inspired by [ghq](https://github.com/motemen/ghq) and written in Rust. 
+It is built using git2 and does not rely on making shell calls to the git cli.
 
 ## Usage
 ```
@@ -16,7 +19,6 @@ SUBCOMMANDS:
     get     Clone a remote repository under the grm or ghq root directory
     help    Prints this message or the help of the given subcommand(s)
     list    Print a list of repositories relative to their root
-    look    Change directories to the given repository
     root    prints the grm.root of the current repository if you are inside one, otherwise prints the main root <not fully implemented>
 ```
 
