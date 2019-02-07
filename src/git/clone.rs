@@ -1,19 +1,19 @@
 use git2::{
     build::{CheckoutBuilder, RepoBuilder},
-    FetchOptions, RemoteCallbacks
+    FetchOptions, RemoteCallbacks,
 };
 use std::{
     io,
     io::Write,
     path::{Path, PathBuf},
-	sync::{Arc, RwLock},
+    sync::{Arc, RwLock},
 };
 
 struct Inner {
-	working_path: PathBuf,
-	new_line: bool,
-	total: usize,
-	current: usize,
+    working_path: PathBuf,
+    new_line: bool,
+    total: usize,
+    current: usize,
 }
 
 pub struct GitClone {
@@ -25,15 +25,12 @@ pub struct GitClone {
 
 impl GitClone {
     pub fn new(path: PathBuf, ssh: bool, remote: String) -> GitClone {
-
-		let inner = Arc::new(RwLock::new(
-			Inner{
-				working_path: path.clone(),
-				new_line: true,
-				total: 0,
-				current: 0,
-			}
-		));
+        let inner = Arc::new(RwLock::new(Inner {
+            working_path: path.clone(),
+            new_line: true,
+            total: 0,
+            current: 0,
+        }));
 
         Self {
             inner,
@@ -44,7 +41,6 @@ impl GitClone {
     }
 
     pub fn run(&mut self) {
-        
         let mut callbacks = RemoteCallbacks::new();
         callbacks.transfer_progress(|progress| {
 			match self.inner.write() {
@@ -94,22 +90,21 @@ impl GitClone {
 
         let mut checkout = CheckoutBuilder::new();
         checkout.progress(|path, cur, total| {
+            match self.inner.write() {
+                Ok(mut inner) => {
+                    inner.working_path = match path {
+                        Some(path) => path.to_path_buf(),
+                        None => Path::new("").to_path_buf(),
+                    };
 
-			match self.inner.write() {
-				Ok(mut inner) => {
-					inner.working_path = match path {
-						Some(path) => path.to_path_buf(),
-						None => Path::new("").to_path_buf(),
-					};
-
-					inner.current = cur;
-					inner.total = total;
-					true
-				},
-				//fixme: Panic?
-				Err(_) => false
-			};
-		});
+                    inner.current = cur;
+                    inner.total = total;
+                    true
+                }
+                //fixme: Panic?
+                Err(_) => false,
+            };
+        });
 
         let mut fetch_options = FetchOptions::new();
         fetch_options.remote_callbacks(callbacks);

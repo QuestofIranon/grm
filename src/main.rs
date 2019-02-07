@@ -8,17 +8,20 @@ extern crate failure;
 
 mod git;
 
-use git::{clone::GitClone, pull::{ GitPull, MergeOption}};
+use failure::{err_msg, Error};
+use git::{
+    clone::GitClone,
+    pull::{GitPull, MergeOption},
+};
 use git2::Config;
-use pathdiff::diff_paths;
-use structopt::StructOpt;
-use walkdir::WalkDir;
-use std::fs;
 use once_cell::unsync::Lazy;
+use pathdiff::diff_paths;
 use regex::Regex;
-use failure::{Error, err_msg};
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
+use structopt::StructOpt;
+use walkdir::WalkDir;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -32,9 +35,9 @@ enum Grm {
         /// Use ssh <not implemented yet>
         #[structopt(short = "p")]
         ssh: bool,
-		/// Replace the local repository
-		#[structopt(long = "replace", short = "r")]
-		replace: bool,
+        /// Replace the local repository
+        #[structopt(long = "replace", short = "r")]
+        replace: bool,
         /// Remote url
         remote: Option<String>,
     },
@@ -67,32 +70,38 @@ enum Grm {
 }
 
 impl Drop for Grm {
-	#[allow(unreachable_patterns)]
-	fn drop(&mut self) {
-		// fixme: better messages?
-		let git_config =
-			Config::open_default().expect("No git config found, do you have git installed?");
+    #[allow(unreachable_patterns)]
+    fn drop(&mut self) {
+        // fixme: better messages?
+        let git_config =
+            Config::open_default().expect("No git config found, do you have git installed?");
 
-		match self {
-			Grm::Get {
-				update,
-				ssh,
-				replace,
-				remote,
-		} => command_get(&git_config, *update, *replace, *ssh, remote.take()),
-			Grm::List {
-				full_path,
-				exact,
-				query,
-			} => command_list(&git_config, *full_path, *exact, query.take()),
-			Grm::Look { repository: _ } => println!("Unimplemented!"),
-			Grm::Root { all: _ } => command_root(&git_config),
-			_ => println!("Invalid command, use grm -h for help."),
-		}
-	}
+        match self {
+            Grm::Get {
+                update,
+                ssh,
+                replace,
+                remote,
+            } => command_get(&git_config, *update, *replace, *ssh, remote.take()),
+            Grm::List {
+                full_path,
+                exact,
+                query,
+            } => command_list(&git_config, *full_path, *exact, query.take()),
+            Grm::Look { repository: _ } => println!("Unimplemented!"),
+            Grm::Root { all: _ } => command_root(&git_config),
+            _ => println!("Invalid command, use grm -h for help."),
+        }
+    }
 }
 
-fn command_get(git_config: &Config, update: bool, replace: bool, ssh: bool, remote: Option<String>) {
+fn command_get(
+    git_config: &Config,
+    update: bool,
+    replace: bool,
+    ssh: bool,
+    remote: Option<String>,
+) {
     let grm_root = match git_config.get_path("grm.root") {
         Ok(root) => root,
         Err(_error) => match git_config.get_path("ghq.root") {
@@ -114,113 +123,109 @@ fn command_get(git_config: &Config, update: bool, replace: bool, ssh: bool, remo
         if !path.exists() {
             let mut clone = GitClone::new(path, ssh, remote);
             clone.run();
-        } else{
-			if replace {
-				//fixme: better error handling
-				fs::remove_dir_all(&path).unwrap();
+        } else {
+            if replace {
+                //fixme: better error handling
+                fs::remove_dir_all(&path).unwrap();
 
-				let mut clone = GitClone::new(path, ssh, remote);
-				clone.run();
-				return;
-			}
+                let mut clone = GitClone::new(path, ssh, remote);
+                clone.run();
+                return;
+            }
 
-			if update {
-				let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
+            if update {
+                let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
 
-				match pull.run() {
-					Ok(_) => return,
-					Err(error) => println!("{}", error),
-				};
+                match pull.run() {
+                    Ok(_) => return,
+                    Err(error) => println!("{}", error),
+                };
 
-				return;
-			}
-		}
+                return;
+            }
+        }
     };
 }
 
 fn command_list(git_config: &Config, full_path: bool, exact_match: bool, query: Option<String>) {
-	let grm_root = match git_config.get_path("grm.root") {
-		Ok(root) => root,
-		Err(_error) => match git_config.get_path("ghq.root") {
-			Ok(root) => root,
-			Err(_error) => {
-				println!("grm.root not specified in git config");
-				return;
-			}
-		},
-	};
+    let grm_root = match git_config.get_path("grm.root") {
+        Ok(root) => root,
+        Err(_error) => match git_config.get_path("ghq.root") {
+            Ok(root) => root,
+            Err(_error) => {
+                println!("grm.root not specified in git config");
+                return;
+            }
+        },
+    };
 
-	let results: Vec<PathBuf> = match query {
-		Some(query) => {
-			WalkDir::new(&grm_root)
-				.sort_by(|a, b| a.file_name().cmp(b.file_name()))
-				.min_depth(0)
-				.max_depth(4)
-				.into_iter()
-				.filter_map(Result::ok)
-				.filter_map(|p| {
-					p.path()
-						.as_os_str()
-						.to_os_string()
-						.to_str()
-						.map_or_else(|| None, |e| {
-							let regex = Lazy::new(|| {
-								// if this errors out then let the panic occur
-								Regex::new(&format!("{}", query
-									.to_lowercase()
-									.replace("\\", "/")
-									.replace("/", r"\/")))
-									.unwrap()
-							});
+    let results: Vec<PathBuf> = match query {
+        Some(query) => {
+            WalkDir::new(&grm_root)
+                .sort_by(|a, b| a.file_name().cmp(b.file_name()))
+                .min_depth(0)
+                .max_depth(4)
+                .into_iter()
+                .filter_map(Result::ok)
+                .filter_map(|p| {
+                    p.path().as_os_str().to_os_string().to_str().map_or_else(
+                        || None,
+                        |e| {
+                            let regex = Lazy::new(|| {
+                                // if this errors out then let the panic occur
+                                Regex::new(&format!(
+                                    "{}",
+                                    query.to_lowercase().replace("\\", "/").replace("/", r"\/")
+                                ))
+                                .unwrap()
+                            });
 
-							let mut normalized_path = e.to_lowercase()
-								.replace("\\", "/");
+                            let mut normalized_path = e.to_lowercase().replace("\\", "/");
 
-							if exact_match {
-								let path_parts = normalized_path.rsplit("/").collect::<Vec<&str>>();
+                            if exact_match {
+                                let path_parts = normalized_path.rsplit("/").collect::<Vec<&str>>();
 
-								if !(path_parts.len() > 2) {
-									return None;
-								}
+                                if !(path_parts.len() > 2) {
+                                    return None;
+                                }
 
-								normalized_path = String::from(path_parts[path_parts.len() -1])
-							}
+                                normalized_path = String::from(path_parts[path_parts.len() - 1])
+                            }
 
-							if !regex.is_match(&normalized_path) {
-								return None;
-							}
+                            if !regex.is_match(&normalized_path) {
+                                return None;
+                            }
 
-							Some(p.path().to_path_buf())
-						})
-				})
-				.collect()
-		},
-		None => {
-			WalkDir::new(&grm_root)
-				.sort_by(|a, b| a.file_name().cmp(b.file_name()))
-				.min_depth(0)
-				.max_depth(4)
-				.into_iter()
-				.filter_map(Result::ok)
-				.map(|p| p.path().to_path_buf())
-				.collect()
-		}
-	};
+                            Some(p.path().to_path_buf())
+                        },
+                    )
+                })
+                .collect()
+        }
+        None => WalkDir::new(&grm_root)
+            .sort_by(|a, b| a.file_name().cmp(b.file_name()))
+            .min_depth(0)
+            .max_depth(4)
+            .into_iter()
+            .filter_map(Result::ok)
+            .map(|p| p.path().to_path_buf())
+            .collect(),
+    };
 
-	for entry in results {
-		if entry.as_path().join(".git").exists() {
-			if full_path {
-				println!("{}", entry.as_path().display());
-			} else {
-				let relative_path = match diff_paths(&entry.as_path(), &grm_root) {
-					Some(path) => path,
-					None => continue,
-				};
+    for entry in results {
+        if entry.as_path().join(".git").exists() {
+            if full_path {
+                println!("{}", entry.as_path().display());
+            } else {
+                let relative_path = match diff_paths(&entry.as_path(), &grm_root) {
+                    Some(path) => path,
+                    None => continue,
+                };
 
-				println!("{}", relative_path.as_path().display());
-			}
-		}
-	}
+                println!("{}", relative_path.as_path().display());
+            }
+        }
+    }
 }
 
 fn command_root(git_config: &Config) {
@@ -237,7 +242,6 @@ fn command_root(git_config: &Config) {
 
     println!("{}", grm_root.as_path().display());
 }
-
 
 fn main() {
     let _ = Grm::from_args();

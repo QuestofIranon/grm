@@ -2,22 +2,22 @@ use failure::{Error, ResultExt};
 use git2::{FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
 use std::{
     path::PathBuf,
-	sync::{Arc, RwLock}
+    sync::{Arc, RwLock},
 };
 
 pub enum MergeOption {
-	FastForwardOnly, // currently this is the only merge option used
+    FastForwardOnly, // currently this is the only merge option used
 }
 
 struct Inner {
-	new_line: bool,
-	total: usize,
-	current: usize,
+    new_line: bool,
+    total: usize,
+    current: usize,
 }
 
 pub struct GitPull {
     path: PathBuf,
-	inner: Arc<RwLock<Inner>>,
+    inner: Arc<RwLock<Inner>>,
     repository: Repository,
     merge_option: MergeOption,
     ssh: bool,
@@ -31,17 +31,15 @@ impl GitPull {
             Err(_) => panic!("failed to open repo at: {}", path.as_path().display()),
         };
 
-		let inner = Arc::new(RwLock::new(
-			Inner{
-				new_line: true,
-				total: 0,
-				current: 0,
-			}
-		));
+        let inner = Arc::new(RwLock::new(Inner {
+            new_line: true,
+            total: 0,
+            current: 0,
+        }));
 
         Self {
-			path,
-			inner,
+            path,
+            inner,
             repository,
             merge_option,
             ssh,
@@ -56,16 +54,15 @@ impl GitPull {
 
         let mut remote_callbacks = RemoteCallbacks::new();
         remote_callbacks.transfer_progress(|progress| {
-
-			match self.inner.write() {
-				Ok(mut inner) => {
-					if !inner.new_line {
-						println!();
-						inner.new_line = true;
-					}
-				},
-				Err(_) => panic!()
-			}
+            match self.inner.write() {
+                Ok(mut inner) => {
+                    if !inner.new_line {
+                        println!();
+                        inner.new_line = true;
+                    }
+                }
+                Err(_) => panic!(),
+            }
 
             print!("total objects: {} \r", progress.total_objects());
 
