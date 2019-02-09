@@ -3,8 +3,7 @@ use git2::{
     FetchOptions, RemoteCallbacks,
 };
 use std::{
-    io,
-    io::Write,
+    io::{self, Write},
     path::{Path, PathBuf},
     sync::{Arc, RwLock},
 };

@@ -1,10 +1,8 @@
-extern crate git2;
-extern crate pathdiff;
-extern crate structopt;
-extern crate walkdir;
-
 #[macro_use]
 extern crate failure;
+
+#[macro_use]
+extern crate once_cell;
 
 mod git;
 
@@ -14,85 +12,96 @@ use git::{
     pull::{GitPull, MergeOption},
 };
 use git2::Config;
-use once_cell::unsync::Lazy;
+use once_cell::sync::Lazy;
 use pathdiff::diff_paths;
 use regex::Regex;
-use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 use structopt::StructOpt;
 use walkdir::WalkDir;
+
+#[derive(StructOpt, Debug)]
+struct Get {
+    /// Perform an update for an already cloned repository (roughly equivalent to `git pull --ff-only`)
+    #[structopt(long = "update", short = "u")]
+    update: bool,
+    /// Use ssh <not implemented yet>
+    #[structopt(short = "p")]
+    ssh: bool,
+    /// Replace the local repository
+    #[structopt(long = "replace", short = "r")]
+    replace: bool,
+    /// Remote url
+    remote: Option<String>,
+}
+
+impl Drop for Get {
+    fn drop(&mut self) {
+        let git_config =
+            Config::open_default().expect("No git config found, do you have git installed?");
+
+        command_get(
+            &git_config,
+            self.update,
+            self.replace,
+            self.ssh,
+            self.remote.take(),
+        )
+    }
+}
+
+#[derive(StructOpt, Debug)]
+struct List {
+    /// print the full path instead <will likely become default behavior>
+    #[structopt(long = "full-path", short = "p")]
+    full_path: bool,
+    /// forces the match to be exact (only if query is provided)
+    #[structopt(long = "exact", short = "e")]
+    exact: bool,
+    /// Search Query
+    query: Option<String>,
+}
+
+impl Drop for List {
+    fn drop(&mut self) {
+        let git_config =
+            Config::open_default().expect("No git config found, do you have git installed?");
+        command_list(&git_config, self.full_path, self.exact, self.query.take())
+    }
+}
+
+#[derive(StructOpt, Debug)]
+struct Look {
+    /// Repository to look in
+    repository: String,
+}
+
+#[derive(StructOpt, Debug)]
+struct Root {
+    /// prints all known grm roots <not implemented yet>
+    #[structopt(long = "all", short = "a")]
+    all: bool,
+}
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
 enum Grm {
     /// Clone a remote repository under the grm or ghq root directory
     #[structopt(name = "get")]
-    Get {
-        /// Perform an update for an already cloned repository (roughly equivalent to `git pull --ff-only`)
-        #[structopt(long = "update", short = "u")]
-        update: bool,
-        /// Use ssh <not implemented yet>
-        #[structopt(short = "p")]
-        ssh: bool,
-        /// Replace the local repository
-        #[structopt(long = "replace", short = "r")]
-        replace: bool,
-        /// Remote url
-        remote: Option<String>,
-    },
+    Get(Get),
 
     /// Print a list of repositories relative to their root
     #[structopt(name = "list")]
-    List {
-        /// print the full path instead <will likely become default behavior>
-        #[structopt(long = "full-path", short = "p")]
-        full_path: bool,
-        /// forces the match to be exact (only if query is provided)
-        #[structopt(long = "exact", short = "e")]
-        exact: bool,
-        /// Search Query
-        query: Option<String>,
-    },
+    List(List),
+
     /// Change directories to the given repository
     #[structopt(name = "look")]
-    Look {
-        /// Repository to look in
-        repository: String,
-    },
+    Look(Look),
     /// prints the grm.root of the current repository if you are inside one, otherwise prints the main root <not fully implemented>
     #[structopt(name = "root")]
-    Root {
-        /// prints all known grm roots <not implemented yet>
-        #[structopt(long = "all", short = "a")]
-        all: bool,
-    },
-}
-
-impl Drop for Grm {
-    #[allow(unreachable_patterns)]
-    fn drop(&mut self) {
-        // fixme: better messages?
-        let git_config =
-            Config::open_default().expect("No git config found, do you have git installed?");
-
-        match self {
-            Grm::Get {
-                update,
-                ssh,
-                replace,
-                remote,
-            } => command_get(&git_config, *update, *replace, *ssh, remote.take()),
-            Grm::List {
-                full_path,
-                exact,
-                query,
-            } => command_list(&git_config, *full_path, *exact, query.take()),
-            Grm::Look { repository: _ } => println!("Unimplemented!"),
-            Grm::Root { all: _ } => command_root(&git_config),
-            _ => println!("Invalid command, use grm -h for help."),
-        }
-    }
+    Root(Root),
 }
 
 fn command_get(
