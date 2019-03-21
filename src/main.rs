@@ -4,7 +4,10 @@ extern crate failure;
 #[macro_use]
 extern crate once_cell;
 
+mod commands;
 mod git;
+#[macro_use]
+mod macros;
 
 use failure::{err_msg, Error};
 use git::{
@@ -18,39 +21,10 @@ use regex::Regex;
 use std::{
     fs,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 use structopt::StructOpt;
 use walkdir::WalkDir;
-
-#[derive(StructOpt, Debug)]
-struct Get {
-    /// Perform an update for an already cloned repository (roughly equivalent to `git pull --ff-only`)
-    #[structopt(long = "update", short = "u")]
-    update: bool,
-    /// Use ssh <not implemented yet>
-    #[structopt(short = "p")]
-    ssh: bool,
-    /// Replace the local repository
-    #[structopt(long = "replace", short = "r")]
-    replace: bool,
-    /// Remote url
-    remote: Option<String>,
-}
-
-impl Drop for Get {
-    fn drop(&mut self) {
-        let git_config =
-            Config::open_default().expect("No git config found, do you have git installed?");
-
-        command_get(
-            &git_config,
-            self.update,
-            self.replace,
-            self.ssh,
-            self.remote.take(),
-        )
-    }
-}
 
 #[derive(StructOpt, Debug)]
 struct List {
@@ -66,9 +40,7 @@ struct List {
 
 impl Drop for List {
     fn drop(&mut self) {
-        let git_config =
-            Config::open_default().expect("No git config found, do you have git installed?");
-        command_list(&git_config, self.full_path, self.exact, self.query.take())
+        command_list(self.full_path, self.exact, self.query.take())
     }
 }
 
@@ -90,7 +62,7 @@ struct Root {
 enum Grm {
     /// Clone a remote repository under the grm or ghq root directory
     #[structopt(name = "get")]
-    Get(Get),
+    Get(commands::get::Get),
 
     /// Print a list of repositories relative to their root
     #[structopt(name = "list")]
@@ -104,69 +76,8 @@ enum Grm {
     Root(Root),
 }
 
-fn command_get(
-    git_config: &Config,
-    update: bool,
-    replace: bool,
-    ssh: bool,
-    remote: Option<String>,
-) {
-    let grm_root = match git_config.get_path("grm.root") {
-        Ok(root) => root,
-        Err(_error) => match git_config.get_path("ghq.root") {
-            Ok(root) => root,
-            Err(_error) => {
-                println!("grm.root not specified in git config");
-                return;
-            }
-        },
-    };
-
-    if let Some(remote) = remote {
-        let sub_path = remote
-            .trim_start_matches(&"https://")
-            .trim_end_matches(&".git");
-
-        let path = grm_root.as_path().join(sub_path);
-
-        if !path.exists() {
-            let mut clone = GitClone::new(path, ssh, remote);
-            clone.run();
-        } else {
-            if replace {
-                //fixme: better error handling
-                fs::remove_dir_all(&path).unwrap();
-
-                let mut clone = GitClone::new(path, ssh, remote);
-                clone.run();
-                return;
-            }
-
-            if update {
-                let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
-
-                match pull.run() {
-                    Ok(_) => return,
-                    Err(error) => println!("{}", error),
-                };
-
-                return;
-            }
-        }
-    };
-}
-
-fn command_list(git_config: &Config, full_path: bool, exact_match: bool, query: Option<String>) {
-    let grm_root = match git_config.get_path("grm.root") {
-        Ok(root) => root,
-        Err(_error) => match git_config.get_path("ghq.root") {
-            Ok(root) => root,
-            Err(_error) => {
-                println!("grm.root not specified in git config");
-                return;
-            }
-        },
-    };
+fn command_list(full_path: bool, exact_match: bool, query: Option<String>) {
+    let grm_root = grm_root!();
 
     let results: Vec<PathBuf> = match query {
         Some(query) => {
@@ -237,17 +148,8 @@ fn command_list(git_config: &Config, full_path: bool, exact_match: bool, query: 
     }
 }
 
-fn command_root(git_config: &Config) {
-    let grm_root = match git_config.get_path("grm.root") {
-        Ok(root) => root,
-        Err(_error) => match git_config.get_path("ghq.root") {
-            Ok(root) => root,
-            Err(_error) => {
-                println!("grm.root not specified in git config");
-                return;
-            }
-        },
-    };
+fn command_root() {
+    let grm_root = grm_root!();
 
     println!("{}", grm_root.as_path().display());
 }
