@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use walkdir::WalkDir;
 use once_cell::sync::Lazy;
 use pathdiff::diff_paths;
 use regex::Regex;
+use std::path::PathBuf;
 use structopt::StructOpt;
+use walkdir::WalkDir;
 
 #[derive(StructOpt, Debug)]
 pub struct List {
@@ -43,7 +43,7 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) {
                                     "{}",
                                     query.to_lowercase().replace("\\", "/").replace("/", r"\/")
                                 ))
-                                    .unwrap()
+                                .unwrap()
                             });
 
                             let mut normalized_path = e.to_lowercase().replace("\\", "/");

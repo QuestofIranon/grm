@@ -26,4 +26,3 @@ pub enum Grm {
     #[structopt(name = "root")]
     Root(root::Root),
 }
-

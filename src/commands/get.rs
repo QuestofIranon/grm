@@ -26,7 +26,6 @@ macro_rules! grm_root {
     }};
 }
 
-
 #[derive(StructOpt, Debug)]
 pub struct Get {
     /// Perform an update for an already cloned repository (roughly equivalent to `git pull --ff-only`)
