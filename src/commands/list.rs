@@ -25,57 +25,44 @@ impl Drop for List {
 fn command_list(full_path: bool, exact_match: bool, query: Option<String>) {
     let grm_root = grm_root!();
 
+    let dirs = WalkDir::new(&grm_root)
+        .sort_by(|a, b| a.file_name().cmp(b.file_name()))
+        .min_depth(0)
+        .max_depth(4)
+        .into_iter()
+        .filter_map(Result::ok);
+
     let results: Vec<PathBuf> = match query {
-        Some(query) => {
-            WalkDir::new(&grm_root)
-                .sort_by(|a, b| a.file_name().cmp(b.file_name()))
-                .min_depth(0)
-                .max_depth(4)
-                .into_iter()
-                .filter_map(Result::ok)
-                .filter_map(|p| {
-                    p.path().as_os_str().to_os_string().to_str().map_or_else(
-                        || None,
-                        |e| {
-                            let regex = Lazy::new(|| {
-                                // if this errors out then let the panic occur
-                                Regex::new(&format!(
-                                    "{}",
-                                    query.to_lowercase().replace("\\", "/").replace("/", r"\/")
-                                ))
-                                .unwrap()
-                            });
+        Some(query) => dirs
+            .filter(|p| {
+                // todo: handle unwrap better?
+                let path_str = p.path().as_os_str().to_os_string().into_string().unwrap();
 
-                            let mut normalized_path = e.to_lowercase().replace("\\", "/");
+                let regex = Lazy::new(|| {
+                    // if this errors out then let the panic occur
+                    Regex::new(&format!("{}", query.to_lowercase()
+                        .replace("\\", "/")
+                        .replace("/", r"\/")))
+                        .unwrap()
+                });
 
-                            if exact_match {
-                                let path_parts = normalized_path.rsplit("/").collect::<Vec<&str>>();
+                let normalized_path = path_str.to_lowercase().replace("\\", "/");
 
-                                if !(path_parts.len() > 2) {
-                                    return None;
-                                }
+                if !exact_match {
+                    return regex.is_match(&normalized_path);
+                }
 
-                                normalized_path = String::from(path_parts[path_parts.len() - 1])
-                            }
+                let path_parts = normalized_path.rsplit("/").collect::<Vec<&str>>();
 
-                            if !regex.is_match(&normalized_path) {
-                                return None;
-                            }
+                if !(path_parts.len() > 2) {
+                    return false;
+                }
 
-                            Some(p.path().to_path_buf())
-                        },
-                    )
-                })
-                .collect()
-        }
-        None => WalkDir::new(&grm_root)
-            .sort_by(|a, b| a.file_name().cmp(b.file_name()))
-            .min_depth(0)
-            .max_depth(4)
-            .into_iter()
-            .filter_map(Result::ok)
+                regex.is_match(&String::from(path_parts[path_parts.len() - 1]))
+            })
             .map(|p| p.path().to_path_buf())
             .collect(),
+        None => dirs.map(|p| p.path().to_path_buf()).collect(),
     };
 
     for entry in results {

@@ -1,7 +1,5 @@
 #[macro_use]
 extern crate failure;
-
-#[macro_use]
 extern crate once_cell;
 
 mod commands;
