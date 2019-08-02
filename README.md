@@ -9,7 +9,7 @@ It is built using git2 and does not rely on making shell calls to the git cli.
 Git remote repository manager
 
 USAGE:
-    grm.exe <SUBCOMMAND>
+    grm <SUBCOMMAND>
 
 FLAGS:
     -h, --help       Prints help information
