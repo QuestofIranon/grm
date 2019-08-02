@@ -40,26 +40,29 @@ fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) {
         if !path.exists() {
             let mut clone = GitClone::new(path, ssh, remote);
             clone.run();
-        } else {
-            if replace {
-                //fixme: better error handling
-                fs::remove_dir_all(&path).unwrap();
 
-                let mut clone = GitClone::new(path, ssh, remote);
-                clone.run();
-                return;
-            }
-
-            if update {
-                let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
-
-                match pull.run() {
-                    Ok(_) => return,
-                    Err(error) => println!("{}", error),
-                };
-
-                return;
-            }
+            return;
         }
+
+        if replace {
+            // fixme: better error handling
+            fs::remove_dir_all(&path).unwrap();
+
+            let mut clone = GitClone::new(path, ssh, remote);
+            clone.run();
+            return;
+        }
+
+        if update {
+            let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
+
+            match pull.run() {
+                Ok(_) => return,
+                Err(error) => println!("{}", error),
+            };
+
+            return;
+        }
+
     };
 }
