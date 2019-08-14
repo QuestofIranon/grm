@@ -5,10 +5,11 @@ authors = ["Josh <QuestofIranon@users.noreply.github.com>"]
 edition = "2018"
 
 [dependencies]
-structopt = "0.2.14"
-git2 = "0.8.0"
-walkdir = "2.2.7"
+structopt = "0.2.18"
+git2 = "0.9.2"
+walkdir = "2.2.9"
 pathdiff = "0.1.0"
 failure = "0.1.5"
-regex = "1.1.0"
-once_cell = "0.1.7"
+regex = "1.1.9"
+once_cell = "0.2.3"
+git2_credentials = "0.3.0"
