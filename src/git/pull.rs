@@ -1,9 +1,10 @@
 use failure::{Error, ResultExt};
-use git2::{FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
+use git2::{FetchOptions, MergeAnalysis, RemoteCallbacks, Repository, Config};
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
 };
+use git2_credentials::CredentialHandler;
 
 pub enum MergeOption {
     FastForwardOnly, // currently this is the only merge option used
@@ -68,6 +69,14 @@ impl GitPull {
 
             true
         });
+
+        // todo: refactor this later
+        let config = Config::open_default().expect("No git config found, do you have git installed?");
+
+        let mut credential_handler = CredentialHandler::new(config);
+
+        callbacks.credentials(move |url, username, allowed| credential_handler.try_next_credential(url, username, allowed));
+
 
         let mut options = FetchOptions::new();
         options.remote_callbacks(remote_callbacks);

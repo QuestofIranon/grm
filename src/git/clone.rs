@@ -1,7 +1,5 @@
-use git2::{
-    build::{CheckoutBuilder, RepoBuilder},
-    FetchOptions, RemoteCallbacks,
-};
+use git2::{build::{CheckoutBuilder, RepoBuilder}, FetchOptions, RemoteCallbacks, Cred, Config};
+use git2_credentials::CredentialHandler;
 use std::{
     io::{self, Write},
     path::{Path, PathBuf},
@@ -41,51 +39,58 @@ impl GitClone {
 
     pub fn run(&mut self) {
         let mut callbacks = RemoteCallbacks::new();
+
         callbacks.transfer_progress(|progress| {
-			match self.inner.write() {
-				Ok(mut inner) => {
-					let network_percentage = (100 * progress.received_objects()) / progress.total_objects();
-					let index_percentage = (100 * progress.indexed_objects()) / progress.total_objects();
-					let transferred_kbytes = progress.received_bytes() / 1024;
+            if let Ok(mut inner) = self.inner.write() {
+                let network_percentage = (100 * progress.received_objects()) / progress.total_objects();
+                let index_percentage = (100 * progress.indexed_objects()) / progress.total_objects();
+                let transferred_kbytes = progress.received_bytes() / 1024;
 
-					let co_percentage = if inner.total > 0 {
-						(100 * inner.current) / inner.total
-					} else { 0 };
+                let co_percentage = if inner.total > 0 {
+                    100 * (inner.current / inner.total)
+                } else { 0 };
 
-					if progress.received_objects() == progress.total_objects() {
-						if !inner.new_line {
-							println!();
-							inner.new_line = true;
-						}
+                if progress.received_objects() == progress.total_objects() {
+                    if !inner.new_line {
+                        println!();
+                        inner.new_line = true;
+                    }
 
-						print!(
-							"Resolving deltas: {}/{}\r",
-							progress.indexed_deltas(),
-							progress.total_deltas()
-						);
-					} else {
-						println!(
-							"Receiving objects: {:3}% ({:4} kb, {:5}/{:5}) / idx {:3}% ({:5}/{:5}) / chk {:3}% ({:4}/{:4}) {}\r",
-							network_percentage,
-							transferred_kbytes,
-							progress.received_objects(),
-							progress.total_objects(),
-							index_percentage,
-							progress.indexed_objects(),
-							progress.total_objects(),
-							co_percentage,
-							inner.current,
-							inner.total,
-							inner.working_path.display()
-						);
-					};
-					io::stdout().flush().unwrap();
+                    print!(
+                        "\rResolving deltas: {}/{}",
+                        progress.indexed_deltas(),
+                        progress.total_deltas()
+                    );
+                } else {
+                    print!(
+                        "\rReceiving objects: {:3}% ({:4} kb, {:5}/{:5}) / idx {:3}% ({:5}/{:5}) / chk {:3}% ({:4}/{:4}) {}",
+                        network_percentage,
+                        transferred_kbytes,
+                        progress.received_objects(),
+                        progress.total_objects(),
+                        index_percentage,
+                        progress.indexed_objects(),
+                        progress.total_objects(),
+                        co_percentage,
+                        inner.current,
+                        inner.total,
+                        inner.working_path.display()
+                    );
+                };
+                io::stdout().flush().unwrap();
 
-					true
-				},
-				Err(_) => false
-			}
+                true
+            } else {
+                false
+            }
 		});
+
+        // todo: refactor this later
+        let config = Config::open_default().expect("No git config found, do you have git installed?");
+
+        let mut credential_handler = CredentialHandler::new(config);
+
+        callbacks.credentials(move |url, username, allowed| credential_handler.try_next_credential(url, username, allowed));
 
         let mut checkout = CheckoutBuilder::new();
         checkout.progress(|path, cur, total| {
