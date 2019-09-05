@@ -75,8 +75,7 @@ impl GitPull {
 
         let mut credential_handler = CredentialHandler::new(config);
 
-        callbacks.credentials(move |url, username, allowed| credential_handler.try_next_credential(url, username, allowed));
-
+        remote_callbacks.credentials(move |url, username, allowed| credential_handler.try_next_credential(url, username, allowed));
 
         let mut options = FetchOptions::new();
         options.remote_callbacks(remote_callbacks);
