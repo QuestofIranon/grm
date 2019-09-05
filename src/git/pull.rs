@@ -12,38 +12,38 @@ pub enum MergeOption {
 
 struct Inner {
     new_line: bool,
-    total: usize,
-    current: usize,
+    // total: usize, fixme
+    // current: usize, fixme
 }
 
 pub struct GitPull {
-    path: PathBuf,
+    // path: PathBuf, fixme
     inner: Arc<RwLock<Inner>>,
     repository: Repository,
     merge_option: MergeOption,
-    ssh: bool,
+   // ssh: bool, fixme
 }
 
 impl GitPull {
-    pub fn new(path: PathBuf, merge_option: MergeOption, ssh: bool) -> GitPull {
+    pub fn new(path: PathBuf, merge_option: MergeOption, _ssh: bool) -> GitPull {
         let repository = match Repository::open(path.clone()) {
             Ok(repo) => repo,
             // fixme: better error handling here
-            Err(_) => panic!("failed to open repo at: {}", path.as_path().display()),
+            Err(e) => panic!("failed to open repo at: {}\ncause: {}", path.as_path().display(), e.message()),
         };
 
         let inner = Arc::new(RwLock::new(Inner {
             new_line: true,
-            total: 0,
-            current: 0,
+            // total: 0, fixme
+            // current: 0, fixme
         }));
 
         Self {
-            path,
+            // path, fixme
             inner,
             repository,
             merge_option,
-            ssh,
+            // ssh, fixme
         }
     }
 

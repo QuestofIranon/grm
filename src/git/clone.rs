@@ -1,4 +1,4 @@
-use git2::{build::{CheckoutBuilder, RepoBuilder}, FetchOptions, RemoteCallbacks, Cred, Config};
+use git2::{build::{CheckoutBuilder, RepoBuilder}, FetchOptions, RemoteCallbacks, Config};
 use git2_credentials::CredentialHandler;
 use std::{
     io::{self, Write},
@@ -16,12 +16,12 @@ struct Inner {
 pub struct GitClone {
     inner: Arc<RwLock<Inner>>,
     into: PathBuf,
-    ssh: bool,
+    // ssh: bool, fixme: re-enable
     remote: String,
 }
 
 impl GitClone {
-    pub fn new(path: PathBuf, ssh: bool, remote: String) -> GitClone {
+    pub fn new(path: PathBuf, _ssh: bool, remote: String) -> GitClone {
         let inner = Arc::new(RwLock::new(Inner {
             working_path: path.clone(),
             new_line: true,
@@ -32,7 +32,7 @@ impl GitClone {
         Self {
             inner,
             into: path,
-            ssh,
+            // ssh, fixme
             remote,
         }
     }
@@ -57,13 +57,13 @@ impl GitClone {
                     }
 
                     print!(
-                        "\rResolving deltas: {}/{}",
+                        "\r\rResolving deltas: {}/{}",
                         progress.indexed_deltas(),
                         progress.total_deltas()
                     );
                 } else {
                     print!(
-                        "\rReceiving objects: {:3}% ({:4} kb, {:5}/{:5}) / idx {:3}% ({:5}/{:5}) / chk {:3}% ({:4}/{:4}) {}",
+                        "\r\rReceiving objects: {:3}% ({:4} kb, {:5}/{:5}) / idx {:3}% ({:5}/{:5}) / chk {:3}% ({:4}/{:4}) {}",
                         network_percentage,
                         transferred_kbytes,
                         progress.received_objects(),

@@ -2,7 +2,6 @@ use crate::git::{
     clone::GitClone,
     pull::{GitPull, MergeOption},
 };
-use git2::Config;
 use std::fs;
 use structopt::StructOpt;
 

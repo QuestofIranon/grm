@@ -40,9 +40,10 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) {
 
                 let regex = Lazy::new(|| {
                     // if this errors out then let the panic occur
-                    Regex::new(&format!("{}", query.to_lowercase()
+                    Regex::new(&query.to_lowercase()
                         .replace("\\", "/")
-                        .replace("/", r"\/")))
+                        .replace("/", r"\/")
+                        .to_string())
                         .unwrap()
                 });
 
@@ -52,9 +53,9 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) {
                     return regex.is_match(&normalized_path);
                 }
 
-                let path_parts = normalized_path.rsplit("/").collect::<Vec<&str>>();
+                let path_parts = normalized_path.rsplit('/').collect::<Vec<&str>>();
 
-                if !(path_parts.len() > 2) {
+                if path_parts.len() <= 2 {
                     return false;
                 }
 
