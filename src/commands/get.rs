@@ -22,6 +22,12 @@ pub struct Get {
     remote: Option<String>,
 }
 
+#[derive(Debug, Fail)]
+pub enum GetError {
+    #[fail(display = "No remote repository provided.")]
+    ErrNoRemote
+}
+
 impl ExecutableCommand for Get {
     fn execute(self) -> Result<(), Error> {
         command_get(self.update, self.replace, self.ssh, self.remote)
@@ -31,41 +37,38 @@ impl ExecutableCommand for Get {
 fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -> Result<(), Error> {
     let grm_root = grm_root()?;
 
-    if let Some(remote) = remote {
-        let sub_path = remote
-            .trim_start_matches(&"https://")
-            .trim_end_matches(&".git");
+    let remote = remote.ok_or(GetError::ErrNoRemote)?;
 
-        let path = grm_root.as_path().join(sub_path);
+    //todo: check for other formats (ssh etc)
+    let sub_path = remote
+        .trim_start_matches(&"https://")
+        .trim_end_matches(&".git");
 
-        if !path.exists() {
-            let mut clone = GitClone::new(path, ssh, remote);
-            clone.run();
+    let path = grm_root.as_path().join(sub_path);
 
-            return Ok(());
-        }
+    if !path.exists() {
+        let mut clone = GitClone::new(path, ssh, remote);
+        // todo: clone should return a Result in the future
+        clone.run();
 
-        if replace {
-            // fixme: better error handling
-            fs::remove_dir_all(&path).unwrap();
+        return Ok(());
+    }
 
-            let mut clone = GitClone::new(path, ssh, remote);
-            clone.run();
-            return Ok(());
-        }
+    if replace {
+        // fixme: better error handling
+        fs::remove_dir_all(&path)?;
 
-        if update {
-            let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
+        GitClone::new(path, ssh, remote)
+            .run();
 
-            match pull.run() {
-                Ok(_) => return Ok(()),
-                Err(error) => println!("{}", error),
-            };
+        return Ok(());
+    }
 
-            return Ok(());
-        }
+    if update {
+        let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
 
-    };
+        return pull.run();
+    }
 
     Ok(())
 }
