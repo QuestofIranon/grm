@@ -11,12 +11,10 @@ pub struct Root {
 
 impl ExecutableCommand for Root {
     fn execute(self) -> Result<(), Error> {
-        command_root()
+        let grm_root = grm_root()?;
+
+        println!("{}", grm_root.as_path().display());
+
+        Ok(())
     }
-}
-
-fn command_root() -> Result<(), Error> {
-    let grm_root = grm_root()?;
-
-    Ok(println!("{}", grm_root.as_path().display()))
 }
