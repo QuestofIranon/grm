@@ -1,4 +1,5 @@
 use structopt::StructOpt;
+use crate::commands::grm_root;
 
 #[derive(StructOpt, Debug)]
 pub struct Root {
@@ -14,7 +15,8 @@ impl Drop for Root {
 }
 
 fn command_root() {
-    let grm_root = grm_root!();
+    // todo: propagate errors upwards
+    let grm_root = grm_root().unwrap();
 
     println!("{}", grm_root.as_path().display());
 }

@@ -4,6 +4,7 @@ use crate::git::{
 };
 use std::fs;
 use structopt::StructOpt;
+use crate::commands::grm_root;
 
 #[derive(StructOpt, Debug)]
 pub struct Get {
@@ -27,7 +28,8 @@ impl Drop for Get {
 }
 
 fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) {
-    let grm_root = grm_root!();
+    // todo: propagate errors upwards
+    let grm_root = grm_root().unwrap();
 
     if let Some(remote) = remote {
         let sub_path = remote

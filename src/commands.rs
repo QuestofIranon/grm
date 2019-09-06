@@ -1,11 +1,12 @@
-#[macro_use]
-mod macros;
-
 pub mod get;
 pub mod list;
 pub mod root;
 
 use structopt::StructOpt;
+use std::path::PathBuf;
+use git2::Config;
+use dirs::home_dir;
+use failure::_core::option::NoneError;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
@@ -22,3 +23,22 @@ pub enum Grm {
     #[structopt(name = "root")]
     Root(root::Root),
 }
+
+#[derive(Debug, Fail)]
+pub enum ConfigError {
+    #[fail(display = "No git config found, do you have git installed?")]
+    ErrConfigNotFound,
+    #[fail(display = "No home directory found")]
+    ErrHomeNotFound
+}
+
+#[inline]
+pub fn grm_root() -> Result<PathBuf, ConfigError> {
+    let config = Config::open_default().map_err(|_| -> ConfigError {ConfigError::ErrConfigNotFound})?;
+
+    config.get_path("grm.root")
+        .or_else(|_| -> Result<PathBuf, _> { config.get_path("ghq.root") })
+        .or_else(|_| -> Result<PathBuf, _> { Ok(home_dir()?.join("grm")) })
+        .map_err(|_: NoneError| -> ConfigError {ConfigError::ErrHomeNotFound})
+}
+

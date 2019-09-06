@@ -4,6 +4,7 @@ use regex::Regex;
 use std::path::PathBuf;
 use structopt::StructOpt;
 use walkdir::WalkDir;
+use crate::commands::grm_root;
 
 #[derive(StructOpt, Debug)]
 pub struct List {
@@ -22,8 +23,10 @@ impl Drop for List {
         command_list(self.full_path, self.exact, self.query.take())
     }
 }
+
 fn command_list(full_path: bool, exact_match: bool, query: Option<String>) {
-    let grm_root = grm_root!();
+    // todo: propagate errors upwards
+    let grm_root = grm_root().unwrap();
 
     let dirs = WalkDir::new(&grm_root)
         .sort_by(|a, b| a.file_name().cmp(b.file_name()))
