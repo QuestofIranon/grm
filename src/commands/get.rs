@@ -4,7 +4,8 @@ use crate::git::{
 };
 use std::fs;
 use structopt::StructOpt;
-use crate::commands::grm_root;
+use crate::commands::{grm_root, ExecutableCommand};
+use failure::Error;
 
 #[derive(StructOpt, Debug)]
 pub struct Get {
@@ -21,15 +22,14 @@ pub struct Get {
     remote: Option<String>,
 }
 
-impl Drop for Get {
-    fn drop(&mut self) {
-        command_get(self.update, self.replace, self.ssh, self.remote.take())
+impl ExecutableCommand for Get {
+    fn execute(self) -> Result<(), Error> {
+        command_get(self.update, self.replace, self.ssh, self.remote)
     }
 }
 
-fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) {
-    // todo: propagate errors upwards
-    let grm_root = grm_root().unwrap();
+fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -> Result<(), Error> {
+    let grm_root = grm_root()?;
 
     if let Some(remote) = remote {
         let sub_path = remote
@@ -42,7 +42,7 @@ fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) {
             let mut clone = GitClone::new(path, ssh, remote);
             clone.run();
 
-            return;
+            return Ok(());
         }
 
         if replace {
@@ -51,19 +51,21 @@ fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) {
 
             let mut clone = GitClone::new(path, ssh, remote);
             clone.run();
-            return;
+            return Ok(());
         }
 
         if update {
             let mut pull = GitPull::new(path, MergeOption::FastForwardOnly, ssh);
 
             match pull.run() {
-                Ok(_) => return,
+                Ok(_) => return Ok(()),
                 Err(error) => println!("{}", error),
             };
 
-            return;
+            return Ok(());
         }
 
     };
+
+    Ok(())
 }

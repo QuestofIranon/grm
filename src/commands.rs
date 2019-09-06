@@ -3,11 +3,15 @@ pub mod list;
 pub mod root;
 
 use structopt::StructOpt;
+
 use std::path::PathBuf;
 use git2::Config;
 use dirs::home_dir;
 use failure::_core::option::NoneError;
+use failure::Error;
+use enum_dispatch::enum_dispatch;
 
+#[enum_dispatch]
 #[derive(StructOpt, Debug)]
 #[structopt(name = "grm", about = "Git remote repository manager")]
 pub enum Grm {
@@ -42,3 +46,7 @@ pub fn grm_root() -> Result<PathBuf, ConfigError> {
         .map_err(|_: NoneError| -> ConfigError {ConfigError::ErrHomeNotFound})
 }
 
+#[enum_dispatch(Grm)]
+pub trait ExecutableCommand {
+    fn execute(self) -> Result<(), Error>;
+}
