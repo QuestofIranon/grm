@@ -7,7 +7,7 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 use git2::Config;
 use dirs::home_dir;
-use failure::_core::option::NoneError;
+use std::option::NoneError;
 use failure::Error;
 use enum_dispatch::enum_dispatch;
 
