@@ -1,4 +1,3 @@
-use once_cell::sync::Lazy;
 use pathdiff::diff_paths;
 use regex::Regex;
 use std::path::PathBuf;
@@ -36,19 +35,17 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
         .filter_map(Result::ok);
 
     let results: Vec<PathBuf> = match query {
-        Some(query) => dirs
-            .filter(|p| {
+        Some(query) => {
+            // todo: simplify this more?
+            let regex = Regex::new(&query.to_lowercase()
+                .replace("\\", "/")
+                .replace("/", r"\/")
+                .to_string())
+                .unwrap();
+
+            dirs.filter(|p| {
                 // todo: handle unwrap better?
                 let path_str = p.path().as_os_str().to_os_string().into_string().unwrap();
-
-                let regex = Lazy::new(|| {
-                    // if this errors out then let the panic occur
-                    Regex::new(&query.to_lowercase()
-                        .replace("\\", "/")
-                        .replace("/", r"\/")
-                        .to_string())
-                        .unwrap()
-                });
 
                 let normalized_path = path_str.to_lowercase().replace("\\", "/");
 
@@ -65,7 +62,8 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
                 regex.is_match(&String::from(path_parts[path_parts.len() - 1]))
             })
             .map(|p| p.path().to_path_buf())
-            .collect(),
+            .collect()
+            },
         None => dirs.map(|p| p.path().to_path_buf()).collect(),
     };
 
