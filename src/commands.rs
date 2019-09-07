@@ -41,9 +41,9 @@ pub fn grm_root() -> Result<PathBuf, ConfigError> {
     let config = Config::open_default().map_err(|_| -> ConfigError {ConfigError::ErrConfigNotFound})?;
 
     config.get_path("grm.root")
-        .or_else(|_| -> Result<PathBuf, _> { config.get_path("ghq.root") })
-        .or_else(|_| -> Result<PathBuf, _> { Ok(home_dir()?.join("grm")) })
-        .map_err(|_: NoneError| -> ConfigError {ConfigError::ErrHomeNotFound})
+        .or_else(|_| { config.get_path("ghq.root") })
+        .or_else(|_| { Ok(home_dir()?.join("grm")) })
+        .map_err(|_: NoneError| {ConfigError::ErrHomeNotFound})
 }
 
 #[enum_dispatch(Grm)]
