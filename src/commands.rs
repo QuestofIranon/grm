@@ -4,12 +4,11 @@ pub mod root;
 
 use structopt::StructOpt;
 
-use std::path::PathBuf;
-use git2::Config;
 use dirs::home_dir;
-use std::option::NoneError;
-use failure::Error;
 use enum_dispatch::enum_dispatch;
+use failure::{Error, _core::option::NoneError};
+use git2::Config;
+use std::path::PathBuf;
 
 #[enum_dispatch]
 #[derive(StructOpt, Debug)]
@@ -33,17 +32,19 @@ pub enum ConfigError {
     #[fail(display = "No git config found, do you have git installed?")]
     ErrConfigNotFound,
     #[fail(display = "No home directory found")]
-    ErrHomeNotFound
+    ErrHomeNotFound,
 }
 
 #[inline]
 pub fn grm_root() -> Result<PathBuf, ConfigError> {
-    let config = Config::open_default().map_err(|_| -> ConfigError {ConfigError::ErrConfigNotFound})?;
+    let config =
+        Config::open_default().map_err(|_| -> ConfigError { ConfigError::ErrConfigNotFound })?;
 
-    config.get_path("grm.root")
-        .or_else(|_| { config.get_path("ghq.root") })
-        .or_else(|_| { Ok(home_dir()?.join("grm")) })
-        .map_err(|_: NoneError| {ConfigError::ErrHomeNotFound})
+    config
+        .get_path("grm.root")
+        .or_else(|_| config.get_path("ghq.root"))
+        .or_else(|_| Ok(home_dir()?.join("grm")))
+        .map_err(|_: NoneError| ConfigError::ErrHomeNotFound)
 }
 
 #[enum_dispatch(Grm)]

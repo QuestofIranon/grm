@@ -1,4 +1,7 @@
-use git2::{build::{CheckoutBuilder, RepoBuilder}, FetchOptions, RemoteCallbacks, Config};
+use git2::{
+    build::{CheckoutBuilder, RepoBuilder},
+    Config, FetchOptions, RemoteCallbacks,
+};
 use git2_credentials::CredentialHandler;
 use std::{
     io::{self, Write},
@@ -86,11 +89,14 @@ impl GitClone {
 		});
 
         // todo: refactor this later
-        let config = Config::open_default().expect("No git config found, do you have git installed?");
+        let config =
+            Config::open_default().expect("No git config found, do you have git installed?");
 
         let mut credential_handler = CredentialHandler::new(config);
 
-        callbacks.credentials(move |url, username, allowed| credential_handler.try_next_credential(url, username, allowed));
+        callbacks.credentials(move |url, username, allowed| {
+            credential_handler.try_next_credential(url, username, allowed)
+        });
 
         let mut checkout = CheckoutBuilder::new();
         checkout.progress(|path, cur, total| {

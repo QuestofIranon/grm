@@ -1,6 +1,6 @@
-use structopt::StructOpt;
-use failure::Error;
 use crate::commands::{grm_root, ExecutableCommand};
+use failure::Error;
+use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 pub struct Root {

@@ -1,10 +1,10 @@
 use failure::{Error, ResultExt};
-use git2::{FetchOptions, MergeAnalysis, RemoteCallbacks, Repository, Config};
+use git2::{Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
+use git2_credentials::CredentialHandler;
 use std::{
     path::PathBuf,
     sync::{Arc, RwLock},
 };
-use git2_credentials::CredentialHandler;
 
 pub enum MergeOption {
     FastForwardOnly, // currently this is the only merge option used
@@ -21,7 +21,7 @@ pub struct GitPull {
     inner: Arc<RwLock<Inner>>,
     repository: Repository,
     merge_option: MergeOption,
-   // ssh: bool, fixme
+    // ssh: bool, fixme
 }
 
 impl GitPull {
@@ -29,7 +29,11 @@ impl GitPull {
         let repository = match Repository::open(path.clone()) {
             Ok(repo) => repo,
             // fixme: better error handling here
-            Err(e) => panic!("failed to open repo at: {}\ncause: {}", path.as_path().display(), e.message()),
+            Err(e) => panic!(
+                "failed to open repo at: {}\ncause: {}",
+                path.as_path().display(),
+                e.message()
+            ),
         };
 
         let inner = Arc::new(RwLock::new(Inner {
@@ -71,11 +75,14 @@ impl GitPull {
         });
 
         // todo: refactor this later
-        let config = Config::open_default().expect("No git config found, do you have git installed?");
+        let config =
+            Config::open_default().expect("No git config found, do you have git installed?");
 
         let mut credential_handler = CredentialHandler::new(config);
 
-        remote_callbacks.credentials(move |url, username, allowed| credential_handler.try_next_credential(url, username, allowed));
+        remote_callbacks.credentials(move |url, username, allowed| {
+            credential_handler.try_next_credential(url, username, allowed)
+        });
 
         let mut options = FetchOptions::new();
         options.remote_callbacks(remote_callbacks);

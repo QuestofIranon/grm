@@ -6,10 +6,11 @@ extern crate failure;
 mod commands;
 mod git;
 
-use structopt::StructOpt;
 use crate::commands::ExecutableCommand;
+use structopt::StructOpt;
 
 fn main() {
-    commands::Grm::from_args().execute()
-        .unwrap_or_else(|e| {eprint!("An error occurred: {}", e)})
+    commands::Grm::from_args()
+        .execute()
+        .unwrap_or_else(|e| eprint!("An error occurred: {}", e))
 }

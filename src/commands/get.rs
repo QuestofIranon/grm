@@ -1,11 +1,13 @@
-use crate::git::{
-    clone::GitClone,
-    pull::{GitPull, MergeOption},
+use crate::{
+    commands::{grm_root, ExecutableCommand},
+    git::{
+        clone::GitClone,
+        pull::{GitPull, MergeOption},
+    },
 };
+use failure::Error;
 use std::fs;
 use structopt::StructOpt;
-use crate::commands::{grm_root, ExecutableCommand};
-use failure::Error;
 
 #[derive(StructOpt, Debug)]
 pub struct Get {
@@ -25,7 +27,7 @@ pub struct Get {
 #[derive(Debug, Fail)]
 pub enum GetError {
     #[fail(display = "No remote repository provided.")]
-    ErrNoRemote
+    ErrNoRemote,
 }
 
 impl ExecutableCommand for Get {
@@ -34,7 +36,12 @@ impl ExecutableCommand for Get {
     }
 }
 
-fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -> Result<(), Error> {
+fn command_get(
+    update: bool,
+    replace: bool,
+    ssh: bool,
+    remote: Option<String>,
+) -> Result<(), Error> {
     let grm_root = grm_root()?;
 
     let remote = remote.ok_or(GetError::ErrNoRemote)?;
@@ -58,8 +65,7 @@ fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -
         // fixme: better error handling
         fs::remove_dir_all(&path)?;
 
-        GitClone::new(path, ssh, remote)
-            .run();
+        GitClone::new(path, ssh, remote).run();
 
         return Ok(());
     }
