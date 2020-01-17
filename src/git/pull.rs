@@ -88,8 +88,8 @@ impl GitPull {
         options.remote_callbacks(remote_callbacks);
 
         remote
-            .fetch(&[], Some(&mut options), None)
-            .context("Count not fetch from origin")?;
+            .fetch::<&str>(&[], Some(&mut options), None)
+            .context("Could not fetch from origin")?;
 
         let head = self.repository.head().context("Could not get the head")?;
 
