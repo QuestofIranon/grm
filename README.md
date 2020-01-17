@@ -1,4 +1,5 @@
 # grm
+/d͡ʒɜːm/
 
 ## About
 grm is a git repository manager inspired by [ghq](https://github.com/motemen/ghq) and written in Rust. 
