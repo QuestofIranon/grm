@@ -1,8 +1,7 @@
 # grm
-/d͡ʒɜːm/
 
 ## About
-grm is a git repository manager inspired by [ghq](https://github.com/motemen/ghq) and written in Rust. 
+**grm** */d͡ʒɜːm/* is a git repository manager inspired by [ghq](https://github.com/motemen/ghq) and written in Rust. 
 It is built using [git2](https://github.com/rust-lang/git2-rs) and does not rely on making shell calls to the git cli.
 
 _Note that it is still a WIP and may not be ready for usage_
