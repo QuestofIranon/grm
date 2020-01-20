@@ -1,3 +1,4 @@
+use anyhow::Result;
 use git2::{
     build::{CheckoutBuilder, RepoBuilder},
     Config, FetchOptions, RemoteCallbacks,
@@ -40,7 +41,7 @@ impl GitClone {
         }
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self) -> Result<()> {
         let mut callbacks = RemoteCallbacks::new();
 
         callbacks.transfer_progress(|progress| {
@@ -132,5 +133,7 @@ impl GitClone {
             },
             Err(e) => panic!("failed to clone: {}", e),
         }
+
+        return Ok(());
     }
 }
