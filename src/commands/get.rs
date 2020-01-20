@@ -3,11 +3,12 @@ use crate::{
     git::{
         clone::GitClone,
         pull::{GitPull, MergeOption},
-    },
+    }
 };
 use failure::Error;
 use std::fs;
 use structopt::StructOpt;
+use url::Url;
 
 #[derive(StructOpt, Debug)]
 pub struct Get {
@@ -26,6 +27,10 @@ pub struct Get {
 
 #[derive(Debug, Fail)]
 pub enum GetError {
+    #[fail(display = "Malformed remote url: {}", remote)]
+    ErrMalformedRemote{
+        remote: String,
+    },
     #[fail(display = "No remote repository provided.")]
     ErrNoRemote,
 }
@@ -43,18 +48,20 @@ fn command_get(
     remote: Option<String>,
 ) -> Result<(), Error> {
     let grm_root = grm_root()?;
-
     let remote = remote.ok_or(GetError::ErrNoRemote)?;
 
-    //todo: check for other formats (ssh etc)
-    let sub_path = remote
-        .trim_start_matches(&"https://")
-        .trim_end_matches(&".git");
+    let parsed_remote = Url::parse(&remote)?;
 
-    let path = grm_root.as_path().join(sub_path);
+    println!("root: {}", grm_root.as_os_str().to_string_lossy());
+
+    // todo: remove the clone to the error
+    let path = grm_root.as_path()
+        .join(parsed_remote.host_str().ok_or(GetError::ErrMalformedRemote{remote: remote.clone()})?)
+        .join(parsed_remote.path());
 
     if !path.exists() {
         let mut clone = GitClone::new(path, ssh, remote);
+
         // todo: clone should return a Result in the future
         clone.run();
 
