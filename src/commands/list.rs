@@ -1,5 +1,5 @@
 use crate::commands::{grm_root, ExecutableCommand};
-use anyhow::{Result};
+use anyhow::Result;
 use pathdiff::diff_paths;
 use regex::Regex;
 use std::path::PathBuf;
@@ -36,18 +36,17 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
 
     let results: Vec<PathBuf> = match query {
         Some(query) => {
-
             // if this errors out then let the panic occur
             let regex = Regex::new(
                 &query
-                .to_lowercase()
-                .replace("\\", "/")
-                .replace("/", r"\/")
-                .to_string())
-                .unwrap();
+                    .to_lowercase()
+                    .replace("\\", "/")
+                    .replace("/", r"\/")
+                    .to_string(),
+            )
+            .unwrap();
 
-            dirs
-            .filter(|p| {
+            dirs.filter(|p| {
                 // todo: handle unwrap better?
                 let path_string: String = p.path().to_str().unwrap().to_string();
 
@@ -67,7 +66,7 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
             })
             .map(|p| p.path().to_path_buf())
             .collect()
-        },
+        }
         None => dirs.map(|p| p.path().to_path_buf()).collect(),
     };
 

@@ -4,13 +4,12 @@ pub mod root;
 
 use structopt::StructOpt;
 
+use anyhow::Result;
 use dirs::home_dir;
 use enum_dispatch::enum_dispatch;
-use thiserror::Error;
 use git2::Config;
-use std::path::PathBuf;
-use std::option::NoneError;
-use anyhow::Result;
+use std::{option::NoneError, path::PathBuf};
+use thiserror::Error;
 
 #[enum_dispatch]
 #[derive(StructOpt, Debug)]

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 use git2::{Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
 use git2_credentials::CredentialHandler;
 use std::{
@@ -91,7 +91,7 @@ impl GitPull {
             .fetch::<&str>(&[], Some(&mut options), None)
             .context("Could not fetch from origin")?;
 
-        let head = self.repository.head()?;//.context("Could not get the head")?;
+        let head = self.repository.head()?; //.context("Could not get the head")?;
 
         if !head.is_branch() {
             println!("Head is not currently pointing to a branch, cannot perform update");

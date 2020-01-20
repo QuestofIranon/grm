@@ -3,12 +3,12 @@ use crate::{
     git::{
         clone::GitClone,
         pull::{GitPull, MergeOption},
-    }
+    },
 };
-use anyhow::{Result};
-use thiserror::Error;
+use anyhow::Result;
 use std::fs;
 use structopt::StructOpt;
+use thiserror::Error;
 use url::Url;
 
 #[derive(StructOpt, Debug)]
@@ -29,9 +29,7 @@ pub struct Get {
 #[derive(Debug, Error)]
 pub enum GetError {
     #[error("Malformed remote url: {}", remote)]
-    ErrMalformedRemote{
-        remote: String,
-    },
+    ErrMalformedRemote { remote: String },
     #[error("No remote repository provided.")]
     ErrNoRemote,
 }
@@ -42,12 +40,7 @@ impl ExecutableCommand for Get {
     }
 }
 
-fn command_get(
-    update: bool,
-    replace: bool,
-    ssh: bool,
-    remote: Option<String>,
-) -> Result<()> {
+fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -> Result<()> {
     let grm_root = grm_root()?;
     let remote = remote.ok_or(GetError::ErrNoRemote)?;
 
@@ -56,8 +49,15 @@ fn command_get(
     println!("root: {}", grm_root.as_os_str().to_string_lossy());
 
     // todo: remove the clone to the error
-    let path = grm_root.as_path()
-        .join(parsed_remote.host_str().ok_or(GetError::ErrMalformedRemote{remote: remote.clone()})?)
+    let path = grm_root
+        .as_path()
+        .join(
+            parsed_remote
+                .host_str()
+                .ok_or(GetError::ErrMalformedRemote {
+                    remote: remote.clone(),
+                })?,
+        )
         .join(parsed_remote.path());
 
     if !path.exists() {

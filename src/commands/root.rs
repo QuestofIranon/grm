@@ -1,5 +1,5 @@
 use crate::commands::{grm_root, ExecutableCommand};
-use anyhow::{Result};
+use anyhow::Result;
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
