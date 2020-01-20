@@ -6,9 +6,11 @@ use structopt::StructOpt;
 
 use dirs::home_dir;
 use enum_dispatch::enum_dispatch;
-use failure::{Error, _core::option::NoneError};
+use thiserror::Error;
 use git2::Config;
 use std::path::PathBuf;
+use std::option::NoneError;
+use anyhow::Result;
 
 #[enum_dispatch]
 #[derive(StructOpt, Debug)]
@@ -27,11 +29,11 @@ pub enum Grm {
     Root(root::Root),
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum ConfigError {
-    #[fail(display = "No git config found, do you have git installed?")]
+    #[error("No git config found, do you have git installed?")]
     ErrConfigNotFound,
-    #[fail(display = "No home directory found")]
+    #[error("No home directory found")]
     ErrHomeNotFound,
 }
 
@@ -49,5 +51,5 @@ pub fn grm_root() -> Result<PathBuf, ConfigError> {
 
 #[enum_dispatch(Grm)]
 pub trait ExecutableCommand {
-    fn execute(self) -> Result<(), Error>;
+    fn execute(self) -> Result<()>;
 }

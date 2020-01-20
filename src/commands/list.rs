@@ -1,5 +1,5 @@
 use crate::commands::{grm_root, ExecutableCommand};
-use failure::Error;
+use anyhow::{Result};
 use pathdiff::diff_paths;
 use regex::Regex;
 use std::path::PathBuf;
@@ -19,12 +19,12 @@ pub struct List {
 }
 
 impl ExecutableCommand for List {
-    fn execute(self) -> Result<(), Error> {
+    fn execute(self) -> Result<()> {
         command_list(self.full_path, self.exact, self.query)
     }
 }
 
-fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Result<(), Error> {
+fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Result<()> {
     let grm_root = grm_root()?;
 
     let dirs = WalkDir::new(&grm_root)

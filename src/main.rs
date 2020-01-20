@@ -1,8 +1,5 @@
 #![feature(try_trait)]
 
-#[macro_use]
-extern crate failure;
-
 mod commands;
 mod git;
 

@@ -1,5 +1,5 @@
 use crate::commands::{grm_root, ExecutableCommand};
-use failure::Error;
+use anyhow::{Result};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
@@ -10,7 +10,7 @@ pub struct Root {
 }
 
 impl ExecutableCommand for Root {
-    fn execute(self) -> Result<(), Error> {
+    fn execute(self) -> Result<()> {
         let grm_root = grm_root()?;
 
         println!("{}", grm_root.as_path().display());

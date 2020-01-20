@@ -5,7 +5,8 @@ use crate::{
         pull::{GitPull, MergeOption},
     }
 };
-use failure::Error;
+use anyhow::{Result};
+use thiserror::Error;
 use std::fs;
 use structopt::StructOpt;
 use url::Url;
@@ -25,18 +26,18 @@ pub struct Get {
     remote: Option<String>,
 }
 
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum GetError {
-    #[fail(display = "Malformed remote url: {}", remote)]
+    #[error("Malformed remote url: {}", remote)]
     ErrMalformedRemote{
         remote: String,
     },
-    #[fail(display = "No remote repository provided.")]
+    #[error("No remote repository provided.")]
     ErrNoRemote,
 }
 
 impl ExecutableCommand for Get {
-    fn execute(self) -> Result<(), Error> {
+    fn execute(self) -> Result<()> {
         command_get(self.update, self.replace, self.ssh, self.remote)
     }
 }
@@ -46,7 +47,7 @@ fn command_get(
     replace: bool,
     ssh: bool,
     remote: Option<String>,
-) -> Result<(), Error> {
+) -> Result<()> {
     let grm_root = grm_root()?;
     let remote = remote.ok_or(GetError::ErrNoRemote)?;
 

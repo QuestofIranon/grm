@@ -1,4 +1,4 @@
-use failure::{Error, ResultExt};
+use anyhow::{Context, Result, anyhow};
 use git2::{Config, FetchOptions, MergeAnalysis, RemoteCallbacks, Repository};
 use git2_credentials::CredentialHandler;
 use std::{
@@ -51,7 +51,7 @@ impl GitPull {
         }
     }
 
-    pub fn run(&mut self) -> Result<(), Error> {
+    pub fn run(&mut self) -> Result<()> {
         let mut remote = self
             .repository
             .find_remote("origin")
@@ -91,7 +91,7 @@ impl GitPull {
             .fetch::<&str>(&[], Some(&mut options), None)
             .context("Could not fetch from origin")?;
 
-        let head = self.repository.head().context("Could not get the head")?;
+        let head = self.repository.head()?;//.context("Could not get the head")?;
 
         if !head.is_branch() {
             println!("Head is not currently pointing to a branch, cannot perform update");
@@ -116,7 +116,7 @@ impl GitPull {
         // Note that the underlying library function uses an unsafe block
         let merge_analysis = match self.repository.merge_analysis(&[&remote_commit]) {
             Ok((analysis, _)) => analysis,
-            Err(err) => return Err(format_err!("Could not perform analysis {}", err)),
+            Err(err) => return Err(anyhow!("Could not perform analysis {}", err)),
         };
 
         match &self.merge_option {
