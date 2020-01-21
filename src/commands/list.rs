@@ -1,5 +1,5 @@
 use crate::commands::{grm_root, ExecutableCommand};
-use anyhow::{Context, Result};
+use anyhow::{Result, Context};
 use pathdiff::diff_paths;
 use regex::Regex;
 use std::path::PathBuf;
@@ -36,7 +36,6 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
 
     let results: Vec<PathBuf> = match query {
         Some(query) => {
-            // if this errors out then let the panic occur
             let regex = Regex::new(
                 &query
                     .to_lowercase()
@@ -47,8 +46,7 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
             .context("malformed input was provided causing an internal error")?;
 
             dirs.filter(|p| {
-                // todo: handle unwrap better?
-                let path_string: String = p.path().to_str().unwrap().to_string();
+                let path_string = p.path().to_string_lossy();
 
                 let normalized_path = path_string.to_lowercase().replace("\\", "/");
 

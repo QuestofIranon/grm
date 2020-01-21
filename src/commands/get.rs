@@ -47,9 +47,9 @@ fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -
     // strip out the leading "/" and ".git" if they exist
     let mut project = parsed_remote.path();
     project = project.strip_prefix("/").unwrap_or(project);
-    project = project.strip_suffix(".git").unwrap_or(project);
+    let project = project.strip_suffix(".git").unwrap_or(project);
 
-    path = path.join(project);
+    let path = path.join(project);
 
     if !path.exists() {
         return GitClone::new(path, ssh, remote).run();
