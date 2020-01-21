@@ -56,7 +56,7 @@ impl GitClone {
 
                 if progress.received_objects() == progress.total_objects() {
                     if !inner.new_line {
-                        println!();
+                        println!("new line was toggled");
                         inner.new_line = true;
                     }
 

@@ -1,5 +1,5 @@
 use crate::commands::{grm_root, ExecutableCommand};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use pathdiff::diff_paths;
 use regex::Regex;
 use std::path::PathBuf;
@@ -44,7 +44,7 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
                     .replace("/", r"\/")
                     .to_string(),
             )
-            .unwrap();
+            .context("malformed input was provided causing an internal error")?;
 
             dirs.filter(|p| {
                 // todo: handle unwrap better?
@@ -74,14 +74,15 @@ fn command_list(full_path: bool, exact_match: bool, query: Option<String>) -> Re
         if entry.as_path().join(".git").exists() {
             if full_path {
                 println!("{}", entry.as_path().display());
-            } else {
-                let relative_path = match diff_paths(&entry.as_path(), &grm_root) {
-                    Some(path) => path,
-                    None => continue,
-                };
-
-                println!("{}", relative_path.as_path().display());
+                continue;
             }
+
+            let relative_path = match diff_paths(&entry.as_path(), &grm_root) {
+                Some(path) => path,
+                None => continue,
+            };
+
+            println!("{}", relative_path.as_path().display());
         }
     }
 

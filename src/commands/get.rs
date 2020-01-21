@@ -25,16 +25,6 @@ pub struct Get {
     remote: Option<String>,
 }
 
-/*
-#[derive(Debug, Error)]
-pub enum GetError {
-    #[error("Malformed remote url: {}", remote)]
-    ErrMalformedRemote { remote: String },
-    #[error("No remote repository provided.")]
-    ErrNoRemote,
-}
-*/
-
 impl ExecutableCommand for Get {
     fn execute(self) -> Result<()> {
         command_get(self.update, self.replace, self.ssh, self.remote)
@@ -42,18 +32,24 @@ impl ExecutableCommand for Get {
 }
 
 fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -> Result<()> {
-    let grm_root = grm_root()?;
     let remote = remote.ok_or(anyhow!("No remote repository provided."))?;
     let parsed_remote = Url::parse(&remote)?;
 
-    let path = grm_root
-        .as_path()
-        .join(
-            parsed_remote
-                .host_str()
-                .ok_or(anyhow!("Invalid remote url: {}", remote))?,
-        )
-        .join(parsed_remote.path());
+    // todo: the following code could potentially be improved?
+    //       I've tried a few different approaches already...
+    let mut path = grm_root()?;
+    path.push(
+        parsed_remote
+            .host_str()
+            .ok_or(anyhow!("Invalid remote url: {}", remote))?,
+    );
+
+    // strip out the leading "/" and ".git" if they exist
+    let mut project = parsed_remote.path();
+    project = project.strip_prefix("/").unwrap_or(project);
+    project = project.strip_suffix(".git").unwrap_or(project);
+
+    path = path.join(project);
 
     if !path.exists() {
         return GitClone::new(path, ssh, remote).run();
