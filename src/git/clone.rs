@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use git2::{
     build::{CheckoutBuilder, RepoBuilder},
     Config, FetchOptions, RemoteCallbacks,
@@ -87,7 +87,7 @@ impl GitClone {
             } else {
                 false
             }
-		});
+        });
 
         // todo: refactor this later
         let config =
@@ -101,20 +101,12 @@ impl GitClone {
 
         let mut checkout = CheckoutBuilder::new();
         checkout.progress(|path, cur, total| {
-            match self.inner.write() {
-                Ok(mut inner) => {
-                    inner.working_path = match path {
-                        Some(path) => path.to_path_buf(),
-                        None => Path::new("").to_path_buf(),
-                    };
+            if let Ok(mut inner) = self.inner.write() {
+                inner.working_path = path.unwrap_or(Path::new("")).to_path_buf();
 
-                    inner.current = cur;
-                    inner.total = total;
-                    true
-                }
-                //fixme: Panic?
-                Err(_) => false,
-            };
+                inner.current = cur;
+                inner.total = total;
+            }
         });
 
         let mut fetch_options = FetchOptions::new();
@@ -122,18 +114,19 @@ impl GitClone {
 
         println!("Cloning into '{}'", &self.into.as_path().display());
 
-        match RepoBuilder::new()
+        let repo = RepoBuilder::new()
             .fetch_options(fetch_options)
             .with_checkout(checkout)
             .clone(&self.remote, &self.into)
-        {
-            Ok(repo) => match repo.workdir() {
-                Some(dir) => println!("{}", dir.display()),
-                None => println!("{}", repo.path().display()),
-            },
-            Err(e) => panic!("failed to clone: {}", e),
+            .map_err(|e| anyhow!("failed to clone: {}", e))?;
+
+        if let Some(dir) = repo.workdir() {
+            println!("{}", dir.display());
+            return Ok(());
         }
 
-        return Ok(());
+        println!("{}", repo.path().display());
+
+        Ok(())
     }
 }
