@@ -33,7 +33,11 @@ impl ExecutableCommand for Get {
 
 fn command_get(update: bool, replace: bool, ssh: bool, remote: Option<String>) -> Result<()> {
     let remote = remote.ok_or(anyhow!("No remote repository provided."))?;
-    let parsed_remote = Url::parse(&remote)?;
+    let parsed_remote = if remote.starts_with("git@") {
+        Url::parse(&format!("ssh://{}", remote.replace(".com:", ".com/")))?
+    } else {
+        Url::parse(&remote)?
+    };
 
     // todo: the following code could potentially be improved?
     //       I've tried a few different approaches already...
